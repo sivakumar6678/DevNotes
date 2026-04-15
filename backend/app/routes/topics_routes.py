@@ -7,3 +7,7 @@ def list_topics():
     topics = TopicService.list_topics()
     return jsonify({"topics": topics})
 
+
+def list_topics_by_technology(tech_slug: str):
+    topics = TopicService.list_topics_by_technology(tech_slug)
+    return jsonify(topics)

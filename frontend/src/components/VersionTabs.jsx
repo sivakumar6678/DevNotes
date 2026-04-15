@@ -1,5 +1,5 @@
 const versions = [
-  { key: 'simple', label: 'Simple', enabled: false },
+  { key: 'simple', label: 'Simple', enabled: true },
   { key: 'industry', label: 'Industry', enabled: true },
   { key: 'interview', label: 'Interview', enabled: false },
   { key: 'revision', label: 'Revision', enabled: false },

@@ -21,7 +21,7 @@ export default function Home() {
               </span>
             </div>
             <div className="flex flex-wrap gap-4">
-              <Link to="/notes/closures" className="brand-button-primary">
+              <Link to="/technologies" className="brand-button-primary">
                 Start Learning
               </Link>
               <Link to="/categories" className="brand-button-secondary">

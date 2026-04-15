@@ -45,7 +45,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link to="/notes/closures" className="brand-button-primary">
+          <Link to="/technologies" className="brand-button-primary">
             Start Learning
           </Link>
         </div>
@@ -80,7 +80,7 @@ export default function Navbar() {
                 {item.label}
               </NavLink>
             ))}
-            <Link to="/notes/closures" onClick={() => setMenuOpen(false)} className="brand-button-primary mt-2">
+            <Link to="/technologies" onClick={() => setMenuOpen(false)} className="brand-button-primary mt-2">
               Start Learning
             </Link>
           </nav>

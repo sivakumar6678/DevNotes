@@ -55,13 +55,6 @@ export const recentNotes = [
     summary: 'Understand persistent scope and why closures keep showing up in real applications and interviews.',
     tags: ['Basic', 'Production', 'Interview'],
   },
-  {
-    slug: 'promises',
-    title: 'Promises',
-    topic: 'JavaScript',
-    summary: 'Learn async flow, chaining, and failure handling with examples that feel production-ready.',
-    tags: ['Basic', 'Real-world'],
-  },
 ]
 
 export const docsNavigation = [
@@ -69,7 +62,6 @@ export const docsNavigation = [
     title: 'JavaScript',
     items: [
       { title: 'Closures', slug: 'closures' },
-      { title: 'Promises', slug: 'promises' },
     ],
   },
 ]
@@ -205,8 +197,4 @@ promise
 
 export function getAllNotes() {
   return recentNotes
-}
-
-export function getNoteBySlug(slug) {
-  return notes.find((note) => note.slug === slug) || null
 }

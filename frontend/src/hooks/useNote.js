@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getNoteBySlug } from '../data/docsData'
+import { getNote } from '../api/api'
 
 const defaultVersion = 'simple'
 
@@ -10,26 +10,41 @@ export function useNote(slug) {
   const [selectedVersion, setSelectedVersion] = useState(defaultVersion)
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
-    setSelectedVersion(defaultVersion)
+    let cancelled = false
 
-    if (!slug) {
-      setNote(null)
-      setLoading(false)
-      return
+    async function loadNote() {
+      setLoading(true)
+      setError(null)
+      setSelectedVersion(defaultVersion)
+
+      if (!slug) {
+        setNote(null)
+        setLoading(false)
+        return
+      }
+
+      try {
+        const data = await getNote(slug)
+        if (!cancelled) {
+          setNote(data)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setNote(null)
+          setError(err instanceof Error ? err : new Error('Note not found'))
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
 
-    const data = getNoteBySlug(slug)
-    if (!data) {
-      setNote(null)
-      setError(new Error('Note not found'))
-      setLoading(false)
-      return
-    }
+    loadNote()
 
-    setNote(data)
-    setLoading(false)
+    return () => {
+      cancelled = true
+    }
   }, [slug])
 
   useEffect(() => {

@@ -27,7 +27,7 @@ export default function Categories() {
               {group.items.map((item) => (
                 <Link
                   key={item}
-                  to="/notes/closures"
+                  to="/technologies"
                   className="rounded-2xl border border-brand-border bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-orange-200 hover:bg-brand-orangeSoft hover:text-brand-ink hover:shadow-sm"
                 >
                   {item}
