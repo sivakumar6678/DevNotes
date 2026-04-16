@@ -1,8 +1,9 @@
 import { getCache, setCache } from '../utils/cache'
+import type { NoteDetailResponse } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-async function apiFetch(path, options = {}) {
+async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   const url = `${API_BASE_URL}${path}`
   const response = await fetch(url, {
     headers: {
@@ -18,7 +19,7 @@ async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const message = (data && data.error && data.error.message) || 'Request failed'
-    const error = new Error(message)
+    const error = new Error(message) as any
     error.status = response.status
     error.payload = data
     throw error
@@ -27,7 +28,7 @@ async function apiFetch(path, options = {}) {
   return data
 }
 
-export async function getNote(slug) {
+export async function getNote(slug: string): Promise<NoteDetailResponse> {
   const cacheKey = `note:${slug}`
   const cached = getCache(cacheKey)
   if (cached) {
@@ -39,7 +40,7 @@ export async function getNote(slug) {
   return note
 }
 
-export async function trackView(noteId, versionType) {
+export async function trackView(noteId: number, versionType: string): Promise<void> {
   try {
     await apiFetch('/api/track-view', {
       method: 'POST',

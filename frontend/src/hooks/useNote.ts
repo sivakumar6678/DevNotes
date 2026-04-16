@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getNote } from '../api/api'
+import { getNote } from '../api/notesApi'
+import type { NoteDetailResponse } from '../types'
 
 const defaultVersion = 'simple'
 
-export function useNote(slug) {
-  const [note, setNote] = useState(null)
+export function useNote(slug: string | undefined) {
+  const [note, setNote] = useState<NoteDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<Error | null>(null)
   const [selectedVersion, setSelectedVersion] = useState(defaultVersion)
 
   useEffect(() => {

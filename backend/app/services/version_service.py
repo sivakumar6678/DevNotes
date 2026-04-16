@@ -16,14 +16,10 @@ class VersionService:
             ) from exc
 
     @staticmethod
-    def upsert_version(*, note_slug: str | None, note_id: int | None, version_type: str, content) -> dict:
+    def upsert_version(*, note_id: int, version_type: str, content) -> dict:
         vt = VersionService._parse_version_type(version_type)
 
-        note = None
-        if note_id is not None:
-            note = Note.query.get(note_id)
-        elif note_slug:
-            note = Note.query.filter_by(slug=note_slug).first()
+        note = Note.query.get(note_id)
         if not note:
             raise NotFoundError("Note not found.")
 

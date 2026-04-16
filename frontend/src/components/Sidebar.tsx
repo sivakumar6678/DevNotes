@@ -2,13 +2,25 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { docsNavigation } from '../data/docsData'
 
-const indentClasses = ['pl-3', 'pl-6', 'pl-8', 'pl-10']
-
-function getLabel(item) {
-  return item.title || item.name
+interface NavItem {
+  slug: string;
+  title?: string;
+  name?: string;
+  children?: NavItem[];
 }
 
-function hasActiveDescendant(item, activeSlug) {
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const indentClasses = ['pl-3', 'pl-6', 'pl-8', 'pl-10']
+
+function getLabel(item: NavItem): string {
+  return item.title || item.name || ''
+}
+
+function hasActiveDescendant(item: NavItem, activeSlug: string): boolean {
   if (!item.children) {
     return false
   }
@@ -20,27 +32,27 @@ function hasActiveDescendant(item, activeSlug) {
 
 export default function Sidebar() {
   const location = useLocation()
-  const activeSlug = location.pathname.split('/').pop()
-  const [openSections, setOpenSections] = useState(() =>
-    docsNavigation.reduce((acc, section) => ({ ...acc, [section.title]: true }), {}),
+  const activeSlug = location.pathname.split('/').pop() || ''
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    docsNavigation.reduce((acc, section: NavSection) => ({ ...acc, [section.title]: true }), {}),
   )
-  const [openItems, setOpenItems] = useState({})
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({})
 
-  function toggleSection(sectionTitle) {
+  function toggleSection(sectionTitle: string) {
     setOpenSections((current) => ({
       ...current,
       [sectionTitle]: !current[sectionTitle],
     }))
   }
 
-  function toggleItem(slug) {
+  function toggleItem(slug: string) {
     setOpenItems((current) => ({
       ...current,
       [slug]: !current[slug],
     }))
   }
 
-  function renderItem(item, depth = 0) {
+  function renderItem(item: NavItem, depth = 0) {
     const hasChildren = Array.isArray(item.children) && item.children.length > 0
     const isOpen = openItems[item.slug]
     const label = getLabel(item)
@@ -79,7 +91,7 @@ export default function Sidebar() {
 
         {hasChildren && isOpen ? (
           <ul className="mt-2 space-y-1">
-            {item.children.map((child) => renderItem(child, depth + 1))}
+            {item.children!.map((child) => renderItem(child, depth + 1))}
           </ul>
         ) : null}
       </li>
@@ -89,7 +101,7 @@ export default function Sidebar() {
   function renderNavigation() {
     return (
       <div className="space-y-3">
-        {docsNavigation.map((section) => {
+        {docsNavigation.map((section: NavSection) => {
           const isOpen = openSections[section.title]
 
           return (

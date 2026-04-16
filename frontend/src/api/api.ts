@@ -1,39 +1,7 @@
 import { getCache, setCache } from '../utils/cache'
+import type { Technology, Topic, Note } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-
-export type Technology = {
-  name: string
-  slug: string
-}
-
-export type Topic = {
-  name: string
-  slug: string
-}
-
-export type NoteVersion = {
-  definition?: string
-  problem_it_solves?: string
-  detailed_explanation?: string
-  core_concepts?: Array<{ name?: string; explanation?: string }>
-  how_it_works?: string
-  syntax?: string
-  code_example?: string
-  practical_example?: string
-  real_world_example?: string
-  common_mistakes?: string[]
-  best_practices?: string[]
-  interview_notes?: string[]
-}
-
-export type Note = {
-  id?: number
-  slug: string
-  title: string
-  topic: string
-  versions: Record<string, NoteVersion>
-}
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -59,6 +27,13 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return data as T
 }
 
+type ApiListResponse<T> = {
+  status?: string
+  data?: T
+  topics?: T
+  technologies?: T
+}
+
 export async function getTechnologies(): Promise<Technology[]> {
   const cacheKey = 'technologies'
   const cached = getCache(cacheKey)
@@ -66,7 +41,13 @@ export async function getTechnologies(): Promise<Technology[]> {
     return cached
   }
 
-  const technologies = await apiFetch<Technology[]>('/api/technologies')
+  const response = await apiFetch<ApiListResponse<Technology[]>>('/api/technologies')
+  const technologies = response.data ?? response.technologies ?? (Array.isArray(response) ? response : [])
+
+  if (!Array.isArray(technologies)) {
+    throw new Error('Unexpected technologies response format')
+  }
+
   setCache(cacheKey, technologies)
   return technologies
 }
@@ -78,7 +59,15 @@ export async function getTopics(techSlug: string): Promise<Topic[]> {
     return cached
   }
 
-  const topics = await apiFetch<Topic[]>(`/api/topics/${encodeURIComponent(techSlug)}`)
+  const response = await apiFetch<ApiListResponse<Topic[]>>(
+    `/api/topics/${encodeURIComponent(techSlug)}`
+  )
+  const topics = response.topics ?? response.data ?? (Array.isArray(response) ? response : [])
+
+  if (!Array.isArray(topics)) {
+    throw new Error('Unexpected topics response format')
+  }
+
   setCache(cacheKey, topics)
   return topics
 }

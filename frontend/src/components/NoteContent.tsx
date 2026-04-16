@@ -13,15 +13,15 @@ export const noteSections = [
   { key: 'interview_notes', title: 'Interview Notes', id: 'interview-notes' },
 ]
 
-function isNonEmptyString(value) {
+function isNonEmptyString(value: any): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function isNonEmptyArray(value) {
+function isNonEmptyArray(value: any): value is any[] {
   return Array.isArray(value) && value.length > 0
 }
 
-export default function NoteContent({ version = {} }) {
+export default function NoteContent({ version = {} }: { version?: Record<string, any> }) {
   return (
     <article className="max-w-4xl">
       {noteSections.map((section) => {

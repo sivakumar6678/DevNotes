@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 
-export default function NotFound({ message = 'Page not found.' }) {
+interface NotFoundProps {
+  message?: string;
+}
+
+export default function NotFound({ message = 'Page not found.' }: NotFoundProps) {
   return (
     <div className="brand-panel mx-auto flex max-w-2xl flex-col items-start justify-center gap-6 p-8 text-slate-700">
       <p className="brand-label">Not Found</p>

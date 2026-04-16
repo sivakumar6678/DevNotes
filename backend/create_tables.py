@@ -1,4 +1,5 @@
 from app import create_app
+import app.models  # ensure all ORM models are loaded
 from app.utils.db import db
 
 

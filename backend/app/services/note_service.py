@@ -63,6 +63,10 @@ DEMO_NOTES = {
 
 class NoteService:
     @staticmethod
+    def get_all_notes() -> list[dict]:
+        notes = Note.query.order_by(Note.title.asc()).all()
+        return [{"id": n.id, "title": n.title, "slug": n.slug} for n in notes]
+    @staticmethod
     def get_note_with_versions(slug: str) -> dict:
         note = Note.query.filter_by(slug=slug).first()
         if not note:

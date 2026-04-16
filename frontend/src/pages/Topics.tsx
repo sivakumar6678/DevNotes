@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTopics } from '../api/api'
+import type { Topic } from '../types'
 
-function formatHeading(value) {
+function formatHeading(value: string): string {
   if (!value) return 'Topics'
   return value
     .split('-')
@@ -13,11 +14,11 @@ function formatHeading(value) {
 export default function Topics() {
   const navigate = useNavigate()
   const { tech_slug: techSlug = '' } = useParams()
-  const [topics, setTopics] = useState([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  function renderTopics(items, depth = 0) {
+  function renderTopics(items: Topic[], depth = 0) {
     return items.map((topic) => {
       const hasChildren = Array.isArray(topic.children) && topic.children.length > 0
       const paddingClass = depth === 0 ? 'px-6' : 'pl-8 pr-6'
@@ -32,13 +33,13 @@ export default function Topics() {
             <div>
               <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
               <p className="mt-2 text-sm text-brand-muted">
-                {hasChildren ? `Contains ${topic.children.length} subtopic${topic.children.length === 1 ? '' : 's'}` : 'Open note'}
+                {hasChildren ? `Contains ${topic.children!.length} subtopic${topic.children!.length === 1 ? '' : 's'}` : 'Open note'}
               </p>
             </div>
             <span className="text-sm font-semibold text-brand-orange">Read</span>
           </button>
 
-          {hasChildren ? <div className="space-y-4">{renderTopics(topic.children, depth + 1)}</div> : null}
+          {hasChildren ? <div className="space-y-4">{renderTopics(topic.children!, depth + 1)}</div> : null}
         </div>
       )
     })

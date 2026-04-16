@@ -1,6 +1,6 @@
 import { noteSections } from './NoteContent'
 
-function hasContent(value) {
+function hasContent(value: any): boolean {
   if (Array.isArray(value)) {
     return value.length > 0
   }
@@ -12,7 +12,7 @@ function hasContent(value) {
   return value != null
 }
 
-export default function TableOfContents({ content = {} }) {
+export default function TableOfContents({ content = {} }: { content?: Record<string, any> }) {
   const sections = noteSections.filter((section) => hasContent(content[section.key]))
 
   if (!sections.length) {

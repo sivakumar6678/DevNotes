@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTechnologies } from '../api/api'
+import type { Technology } from '../types'
 
 export default function Technologies() {
   const navigate = useNavigate()
-  const [technologies, setTechnologies] = useState([])
+  const [technologies, setTechnologies] = useState<Technology[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 

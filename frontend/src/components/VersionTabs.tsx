@@ -1,3 +1,8 @@
+interface VersionTabsProps {
+  selectedVersion?: string;
+  onSelectVersion?: (key: string) => void;
+}
+
 const versions = [
   { key: 'simple', label: 'Simple', enabled: true },
   { key: 'industry', label: 'Industry', enabled: true },
@@ -7,7 +12,7 @@ const versions = [
   { key: 'theory', label: 'Theory', enabled: false },
 ]
 
-export default function VersionTabs({ selectedVersion = 'industry', onSelectVersion }) {
+export default function VersionTabs({ selectedVersion = 'industry', onSelectVersion }: VersionTabsProps) {
   return (
     <div className="fixed left-0 right-0 top-16 z-50 flex justify-center px-4">
       <div className="flex max-w-full items-center gap-2 overflow-x-auto whitespace-nowrap rounded-full border border-slate-200 bg-white/90 px-4 py-2 shadow-lg backdrop-blur-md">
