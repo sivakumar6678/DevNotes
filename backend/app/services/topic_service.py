@@ -1,4 +1,4 @@
-from app.models import Note, Topic
+from app.models import Topic
 from app.utils.errors import NotFoundError
 
 
@@ -45,6 +45,16 @@ class TopicService:
         ]
 
     @staticmethod
+    def _serialize_topic(topic: Topic) -> dict:
+        children = topic.children.order_by(Topic.name.asc()).all()
+        serialized_children = [TopicService._serialize_topic(child) for child in children]
+
+        result = {"name": topic.name, "slug": topic.slug}
+        if serialized_children:
+            result["children"] = serialized_children
+        return result
+
+    @staticmethod
     def list_technologies() -> list[dict]:
         technologies = Topic.query.filter_by(parent_id=None).order_by(Topic.name.asc()).all()
         if technologies:
@@ -57,31 +67,11 @@ class TopicService:
         technology = Topic.query.filter_by(slug=tech_slug, parent_id=None).first()
         technology_exists_in_demo = tech_slug in DEMO_TOPICS
 
-        note_rows: list[Note] = []
         if technology:
-            direct_notes = (
-                Note.query.join(Topic)
-                .filter(Topic.slug == tech_slug)
-                .order_by(Note.title.asc())
-                .all()
-            )
-            child_notes = (
-                Note.query.join(Topic)
-                .filter(Topic.parent_id == technology.id)
-                .order_by(Note.title.asc())
-                .all()
-            )
-
-            seen = set()
-            for note in [*direct_notes, *child_notes]:
-                if note.slug not in seen:
-                    seen.add(note.slug)
-                    note_rows.append(note)
-
-        if note_rows:
-            return [{"name": note.title, "slug": note.slug} for note in note_rows]
+            direct_children = technology.children.order_by(Topic.name.asc()).all()
+            return [TopicService._serialize_topic(child) for child in direct_children]
 
         if technology_exists_in_demo:
-            return DEMO_TOPICS[tech_slug]
+            return [{"name": topic["name"], "slug": topic["slug"]} for topic in DEMO_TOPICS[tech_slug]]
 
         raise NotFoundError("Technology not found.")

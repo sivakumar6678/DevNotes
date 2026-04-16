@@ -17,6 +17,33 @@ export default function Topics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  function renderTopics(items, depth = 0) {
+    return items.map((topic) => {
+      const hasChildren = Array.isArray(topic.children) && topic.children.length > 0
+      const paddingClass = depth === 0 ? 'px-6' : 'pl-8 pr-6'
+
+      return (
+        <div key={topic.slug} className="space-y-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/notes/${topic.slug}`)}
+            className={`flex w-full items-center justify-between rounded-[1.5rem] border border-brand-border bg-white ${paddingClass} py-5 text-left shadow-brand transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-float`}
+          >
+            <div>
+              <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
+              <p className="mt-2 text-sm text-brand-muted">
+                {hasChildren ? `Contains ${topic.children.length} subtopic${topic.children.length === 1 ? '' : 's'}` : 'Open note'}
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-brand-orange">Read</span>
+          </button>
+
+          {hasChildren ? <div className="space-y-4">{renderTopics(topic.children, depth + 1)}</div> : null}
+        </div>
+      )
+    })
+  }
+
   useEffect(() => {
     let cancelled = false
 
@@ -76,20 +103,7 @@ export default function Topics() {
               <p className="text-sm text-brand-muted">No topics are available for this technology yet.</p>
             </div>
           ) : (
-            topics.map((topic) => (
-              <button
-                key={topic.slug}
-                type="button"
-                onClick={() => navigate(`/notes/${topic.slug}`)}
-                className="flex w-full items-center justify-between rounded-[1.5rem] border border-brand-border bg-white px-6 py-5 text-left shadow-brand transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-float"
-              >
-                <div>
-                  <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
-                  <p className="mt-2 text-sm text-brand-muted">Open note</p>
-                </div>
-                <span className="text-sm font-semibold text-brand-orange">Read</span>
-              </button>
-            ))
+            <div className="space-y-4">{renderTopics(topics)}</div>
           )}
         </section>
       ) : null}
