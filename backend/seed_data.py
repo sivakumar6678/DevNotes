@@ -6,60 +6,76 @@ from app.models.topic import Topic
 def main() -> None:
     app = create_app()
     with app.app_context():
-        # Technologies (parent_id = NULL)
-        technologies = [
-            {"name": "JavaScript", "slug": "javascript"},
-            {"name": "React", "slug": "react"},
-            {"name": "Python", "slug": "python"},
+        hierarchy = [
+            {
+                "name": "JavaScript",
+                "slug": "javascript",
+                "children": [
+                    {
+                        "name": "Functions",
+                        "slug": "functions",
+                        "children": [
+                            {"name": "Closures", "slug": "closures"},
+                        ],
+                    },
+                    {
+                        "name": "Async",
+                        "slug": "async",
+                        "children": [
+                            {"name": "Promises", "slug": "promises"},
+                        ],
+                    },
+                ],
+            },
+            {
+                "name": "React",
+                "slug": "react",
+                "children": [
+                    {
+                        "name": "Core",
+                        "slug": "react-core",
+                        "children": [
+                            {"name": "Components", "slug": "components"},
+                            {"name": "Hooks", "slug": "hooks"},
+                        ],
+                    },
+                ],
+            },
+            {
+                "name": "Python",
+                "slug": "python",
+                "children": [
+                    {
+                        "name": "Advanced",
+                        "slug": "python-advanced",
+                        "children": [
+                            {"name": "Decorators", "slug": "decorators"},
+                            {"name": "List Comprehensions", "slug": "list-comprehensions"},
+                        ],
+                    },
+                ],
+            },
         ]
 
-        for tech in technologies:
-            existing = Topic.query.filter_by(slug=tech["slug"]).first()
-            if not existing:
-                topic = Topic(
-                    name=tech["name"],
-                    slug=tech["slug"],
-                    description=f"Notes about {tech['name']} fundamentals.",
-                    parent_id=None
-                )
+        def upsert_topic(node: dict, parent_id: int | None = None) -> None:
+            topic = Topic.query.filter_by(slug=node["slug"]).first()
+            if not topic:
+                topic = Topic(name=node["name"], slug=node["slug"])
                 db.session.add(topic)
 
-        # Get JavaScript topic
-        js_topic = Topic.query.filter_by(slug="javascript").first()
-        if js_topic:
-            # Topics (child of JavaScript)
-            topics = [
-                {"name": "Functions", "slug": "functions", "parent": None},
-                {"name": "Async", "slug": "async", "parent": None},
-                {"name": "Closures", "slug": "closures", "parent": "functions"},
-                {"name": "Promises", "slug": "promises", "parent": "async"},
-            ]
+            topic.name = node["name"]
+            topic.parent_id = parent_id
+            topic.description = f"Notes about {node['name']}."
+            db.session.flush()
 
-            child_topics = {}
-            for topic_data in topics:
-                existing = Topic.query.filter_by(slug=topic_data["slug"]).first()
-                if existing:
-                    child_topics[topic_data["slug"]] = existing
-                    continue
+            for child in node.get("children", []):
+                upsert_topic(child, topic.id)
 
-                parent_slug = topic_data["parent"]
-                parent_id = js_topic.id if parent_slug is None else None
-
-                if parent_slug is not None:
-                    parent = child_topics.get(parent_slug) or Topic.query.filter_by(slug=parent_slug).first()
-                    parent_id = parent.id if parent else None
-
-                topic = Topic(
-                    name=topic_data["name"],
-                    slug=topic_data["slug"],
-                    description=f"Notes about {topic_data['name']} in JavaScript.",
-                    parent_id=parent_id,
-                )
-                db.session.add(topic)
-                child_topics[topic_data["slug"]] = topic
+        for node in hierarchy:
+            upsert_topic(node)
 
         db.session.commit()
-        print("Sample data seeded successfully")
+        print("Hierarchy seeded successfully")
 
 
 if __name__ == "__main__":

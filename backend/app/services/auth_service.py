@@ -1,11 +1,71 @@
+import os
+
+from sqlalchemy import inspect, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.models.user import User
 from app.utils.db import db
-from app.utils.errors import ValidationError
+from app.utils.errors import NotFoundError, ValidationError
 
 
 class AuthService:
+    @staticmethod
+    def serialize_user(user: User) -> dict:
+        return {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+        }
+
+    @staticmethod
+    def ensure_user_schema() -> None:
+        inspector = inspect(db.engine)
+        if "users" not in inspector.get_table_names():
+            return
+
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        if "status" not in columns:
+            db.session.execute(
+                text("ALTER TABLE users ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'pending'")
+            )
+            db.session.execute(text("UPDATE users SET status = 'approved' WHERE status IS NULL"))
+            db.session.commit()
+
+    @staticmethod
+    def ensure_admin_account() -> None:
+        inspector = inspect(db.engine)
+        if "users" not in inspector.get_table_names():
+            return
+
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@devnotes.local").strip().lower()
+        admin_name = os.getenv("ADMIN_NAME", "Admin").strip() or "Admin"
+        admin_password = os.getenv("ADMIN_PASSWORD", "admin12345")
+
+        admin_user = User.query.filter_by(email=admin_email).first()
+        if admin_user:
+            changed = False
+            if admin_user.role != "admin":
+                admin_user.role = "admin"
+                changed = True
+            if admin_user.status != "approved":
+                admin_user.status = "approved"
+                changed = True
+            if changed:
+                db.session.commit()
+            return
+
+        user = User(
+            name=admin_name,
+            email=admin_email,
+            password=generate_password_hash(admin_password),
+            role="admin",
+            status="approved",
+        )
+        db.session.add(user)
+        db.session.commit()
+
     @staticmethod
     def signup(*, name: str, email: str, password: str) -> dict:
         normalized_email = email.strip().lower()
@@ -16,12 +76,18 @@ class AuthService:
             raise ValidationError("Email already exists.")
 
         password_hash = generate_password_hash(password)
-        user = User(name=normalized_name, email=normalized_email, password_hash=password_hash)
+        user = User(
+            name=normalized_name,
+            email=normalized_email,
+            password=password_hash,
+            role="user",
+            status="pending",
+        )
         db.session.add(user)
         db.session.commit()
 
         print(f"[auth-service] signup success: {normalized_email}")
-        return {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
+        return AuthService.serialize_user(user)
 
     @staticmethod
     def login(*, email: str, password: str) -> dict:
@@ -32,7 +98,29 @@ class AuthService:
         if not user:
             raise ValidationError("User not found.")
 
-        if not check_password_hash(user.password_hash, password):
+        if not check_password_hash(user.password, password):
             raise ValidationError("Wrong password.")
 
-        return {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
+        if user.status != "approved":
+            raise ValidationError("Account not approved yet")
+
+        return AuthService.serialize_user(user)
+
+    @staticmethod
+    def get_user_by_id(user_id: int) -> User:
+        user = db.session.get(User, user_id)
+        if not user:
+            raise NotFoundError("User not found.")
+        return user
+
+    @staticmethod
+    def list_users() -> list[dict]:
+        users = User.query.order_by(User.created_at.desc(), User.id.desc()).all()
+        return [AuthService.serialize_user(user) for user in users]
+
+    @staticmethod
+    def approve_user(user_id: int) -> dict:
+        user = AuthService.get_user_by_id(user_id)
+        user.status = "approved"
+        db.session.commit()
+        return AuthService.serialize_user(user)

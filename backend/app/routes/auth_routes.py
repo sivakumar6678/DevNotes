@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required
 
 from app.services.auth_service import AuthService
 from app.utils.errors import ValidationError
+from app.utils.auth import get_current_user
 
 
 def signup():
@@ -17,9 +18,8 @@ def signup():
         raise ValidationError("`name`, `email`, and `password` are required.")
 
     user = AuthService.signup(name=name, email=email, password=password)
-    token = create_access_token(identity=user["id"])
     print(f"[auth] user created: {user['email']} (id={user['id']})")
-    return jsonify({"user": user, "token": token}), 201
+    return jsonify({"message": "Account created. Awaiting approval.", "user": user}), 201
 
 
 def login():
@@ -40,4 +40,5 @@ def login():
 
 @jwt_required()
 def protected():
-    return jsonify({"message": "You are authenticated!"}), 200
+    user = get_current_user()
+    return jsonify({"message": "You are authenticated!", "user": AuthService.serialize_user(user)}), 200

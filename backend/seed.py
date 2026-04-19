@@ -1,6 +1,7 @@
 import json
 
 from app import create_app
+from app.services.auth_service import AuthService
 from app.utils.db import db
 from app.models import Note, NoteVersion, Topic, VersionType
 from app.utils.slugify import slugify
@@ -47,11 +48,37 @@ def main() -> None:
     app = create_app()
     with app.app_context():
         db.create_all()
+        AuthService.ensure_user_schema()
+        AuthService.ensure_admin_account()
 
-        topic_slug = slugify("JavaScript")
+        tech_slug = slugify("JavaScript")
+        technology = Topic.query.filter_by(slug=tech_slug).first()
+        if not technology:
+            technology = Topic(name="JavaScript", slug=tech_slug, description="Notes about JavaScript fundamentals.")
+            db.session.add(technology)
+            db.session.flush()
+
+        module_slug = slugify("Functions")
+        module = Topic.query.filter_by(slug=module_slug).first()
+        if not module:
+            module = Topic(
+                name="Functions",
+                slug=module_slug,
+                description="Functions module in JavaScript.",
+                parent_id=technology.id,
+            )
+            db.session.add(module)
+            db.session.flush()
+
+        topic_slug = slugify("Closures")
         topic = Topic.query.filter_by(slug=topic_slug).first()
         if not topic:
-            topic = Topic(name="JavaScript", slug=topic_slug, description="Notes about JavaScript fundamentals.")
+            topic = Topic(
+                name="Closures",
+                slug=topic_slug,
+                description="Closures note in JavaScript.",
+                parent_id=module.id,
+            )
             db.session.add(topic)
             db.session.flush()
 
@@ -74,7 +101,7 @@ def main() -> None:
         upsert_version(VersionType.INDUSTRY, INDUSTRY_CONTENT)
 
         db.session.commit()
-        print("Seeded: Topic=JavaScript, Note=Closures, Versions=simple+industry")
+        print("Seeded: JavaScript > Functions > Closures with simple+industry versions")
 
 
 if __name__ == "__main__":

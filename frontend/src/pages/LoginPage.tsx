@@ -14,8 +14,8 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      await login(email, password)
-      navigate('/admin')
+      const response = await login(email, password)
+      navigate(response.user.role === 'admin' ? '/admin' : '/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to login. Please try again.')
     } finally {

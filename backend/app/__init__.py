@@ -5,6 +5,7 @@ from flask_jwt_extended import JWTManager
 from .config import get_config
 from .extensions import migrate
 from .routes import api_bp
+from .services.auth_service import AuthService
 from .utils.errors import APIError
 from .utils.db import db
 
@@ -19,6 +20,10 @@ def create_app() -> Flask:
     CORS(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}})
 
     app.register_blueprint(api_bp)
+
+    with app.app_context():
+        AuthService.ensure_user_schema()
+        AuthService.ensure_admin_account()
 
     @app.errorhandler(APIError)
     def handle_api_error(err: APIError):

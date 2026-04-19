@@ -1,29 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createNoteVersion, getAllNotes, getToken, logout } from '../api/auth'
-
-interface NoteItem {
-  id: number
-  title: string
-}
+import { createNoteVersion, getAllNotes, getCurrentUser, getToken, logout } from '../api/auth'
+import type { NoteOption } from '../types'
+import UserManagement from './UserManagement'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [notes, setNotes] = useState<NoteItem[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState('')
+  const currentUser = getCurrentUser()
+  const [notes, setNotes] = useState<NoteOption[]>([])
+  const [selectedTopicId, setSelectedTopicId] = useState('')
   const [versionType, setVersionType] = useState('industry')
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [activeSection, setActiveSection] = useState<'notes' | 'users'>('notes')
 
   useEffect(() => {
-    if (!getToken()) {
+    if (!getToken() || currentUser?.role !== 'admin') {
       navigate('/login')
       return
     }
     loadNotes()
-  }, [])
+  }, [currentUser?.role, navigate])
 
   async function loadNotes() {
     try {
@@ -42,7 +41,7 @@ export default function AdminDashboard() {
 
     try {
       const parsedContent = JSON.parse(content)
-      await createNoteVersion(Number(selectedNoteId), versionType, parsedContent)
+      await createNoteVersion(Number(selectedTopicId), versionType, parsedContent)
       setStatusMessage('Note version created successfully.')
       setContent('')
     } catch (err) {
@@ -63,15 +62,30 @@ export default function AdminDashboard() {
         <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sticky top-6 h-fit">
           <div className="mb-8 space-y-3">
             <h2 className="text-2xl font-semibold">Admin Dashboard</h2>
-            <p className="text-sm text-slate-600">Create note versions and manage content.</p>
+            <p className="text-sm text-slate-600">Manage notes and approve user access.</p>
           </div>
           <div className="space-y-4">
             <button
               type="button"
-              onClick={() => navigate('/admin')}
-              className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-left text-white shadow-sm hover:bg-blue-700"
+              onClick={() => setActiveSection('notes')}
+              className={`w-full rounded-2xl px-4 py-3 text-left shadow-sm transition ${
+                activeSection === 'notes'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
             >
               Add Note
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection('users')}
+              className={`w-full rounded-2xl px-4 py-3 text-left shadow-sm transition ${
+                activeSection === 'users'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Manage Users
             </button>
             <button
               type="button"
@@ -84,70 +98,76 @@ export default function AdminDashboard() {
         </aside>
 
         <main className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold">Add Note Version</h1>
-              <p className="text-sm text-slate-600">Submit JSON content for a selected note.</p>
-            </div>
-          </div>
+          {activeSection === 'notes' ? (
+            <>
+              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-3xl font-semibold">Add Note Version</h1>
+                  <p className="text-sm text-slate-600">Submit JSON content for a selected note.</p>
+                </div>
+              </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-slate-700">Select Note</span>
-                <select
-                  value={selectedNoteId}
-                  onChange={(e) => setSelectedNoteId(e.target.value)}
-                  required
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Select Note</span>
+                    <select
+                      value={selectedTopicId}
+                      onChange={(e) => setSelectedTopicId(e.target.value)}
+                      required
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Choose a note</option>
+                      {notes.map((note) => (
+                        <option key={note.topic_id} value={note.topic_id}>
+                          {note.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Version Type</span>
+                    <select
+                      value={versionType}
+                      onChange={(e) => setVersionType(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="simple">Simple</option>
+                      <option value="professional">Professional</option>
+                      <option value="industry">Industry</option>
+                      <option value="interview">Interview</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Content (JSON)</span>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    required
+                    rows={10}
+                    placeholder='{"summary": "…"}'
+                    className="w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-4 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </label>
+
+                {statusMessage && <p className="text-green-700">{statusMessage}</p>}
+                {error && <p className="text-red-600">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-3xl bg-blue-600 px-6 py-3 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="">Choose a note</option>
-                  {notes.map((note) => (
-                    <option key={note.id} value={note.id}>
-                      {note.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-slate-700">Version Type</span>
-                <select
-                  value={versionType}
-                  onChange={(e) => setVersionType(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="simple">Simple</option>
-                  <option value="professional">Professional</option>
-                  <option value="industry">Industry</option>
-                  <option value="interview">Interview</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-slate-700">Content (JSON)</span>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                required
-                rows={10}
-                placeholder='{"summary": "…"}'
-                className="w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-4 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
-            </label>
-
-            {statusMessage && <p className="text-green-700">{statusMessage}</p>}
-            {error && <p className="text-red-600">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center justify-center rounded-3xl bg-blue-600 px-6 py-3 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? 'Submitting...' : 'Save Version'}
-            </button>
-          </form>
+                  {loading ? 'Submitting...' : 'Save Version'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <UserManagement />
+          )}
         </main>
       </div>
     </div>

@@ -1,22 +1,26 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { signup } from '../api/auth'
 
 export default function SignupPage() {
-  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
     try {
-      await signup(name, email, password)
-      navigate('/admin')
+      const response = await signup(name, email, password)
+      setSuccessMessage(response.message || 'Account created. Awaiting approval.')
+      setName('')
+      setEmail('')
+      setPassword('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign up. Please try again.')
     } finally {
@@ -69,6 +73,7 @@ export default function SignupPage() {
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
           />
         </div>
+        {successMessage && <p className="text-green-700">{successMessage}</p>}
         {error && <p className="text-red-600">{error}</p>}
         <button
           type="submit"

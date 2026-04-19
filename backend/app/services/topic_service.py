@@ -11,20 +11,50 @@ DEMO_TECHNOLOGIES = [
 
 DEMO_TOPICS = {
     "javascript": [
-        {"name": "Closures", "slug": "closures"},
-        {"name": "Promises", "slug": "promises"},
+        {
+            "name": "Functions",
+            "slug": "functions",
+            "children": [
+                {"name": "Closures", "slug": "closures"},
+            ],
+        },
+        {
+            "name": "Async",
+            "slug": "async",
+            "children": [
+                {"name": "Promises", "slug": "promises"},
+            ],
+        },
     ],
     "react": [
-        {"name": "Components", "slug": "components"},
-        {"name": "Hooks", "slug": "hooks"},
+        {
+            "name": "Core",
+            "slug": "react-core",
+            "children": [
+                {"name": "Components", "slug": "components"},
+                {"name": "Hooks", "slug": "hooks"},
+            ],
+        },
     ],
     "python": [
-        {"name": "Decorators", "slug": "decorators"},
-        {"name": "List Comprehensions", "slug": "list-comprehensions"},
+        {
+            "name": "Advanced",
+            "slug": "python-advanced",
+            "children": [
+                {"name": "Decorators", "slug": "decorators"},
+                {"name": "List Comprehensions", "slug": "list-comprehensions"},
+            ],
+        },
     ],
     "mysql": [
-        {"name": "Joins", "slug": "joins"},
-        {"name": "Indexes", "slug": "indexes"},
+        {
+            "name": "Querying",
+            "slug": "mysql-querying",
+            "children": [
+                {"name": "Joins", "slug": "joins"},
+                {"name": "Indexes", "slug": "indexes"},
+            ],
+        },
     ],
 }
 
@@ -72,6 +102,6 @@ class TopicService:
             return [TopicService._serialize_topic(child) for child in direct_children]
 
         if technology_exists_in_demo:
-            return [{"name": topic["name"], "slug": topic["slug"]} for topic in DEMO_TOPICS[tech_slug]]
+            return DEMO_TOPICS[tech_slug]
 
         raise NotFoundError("Technology not found.")

@@ -7,6 +7,7 @@ from .notes_routes import get_note_by_slug, create_note, get_all_notes
 from .topics_routes import list_topics, list_topics_by_technology
 from .versions_routes import upsert_note_version
 from .auth_routes import login, signup, protected
+from .users_routes import list_users, approve_user
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -22,4 +23,6 @@ api_bp.add_url_rule("/note-version", view_func=upsert_note_version, methods=["PO
 api_bp.add_url_rule("/auth/signup", view_func=signup, methods=["POST"])
 api_bp.add_url_rule("/auth/login", view_func=login, methods=["POST"])
 api_bp.add_url_rule("/auth/protected", view_func=protected, methods=["GET"])
+api_bp.add_url_rule("/users", view_func=list_users, methods=["GET"])
+api_bp.add_url_rule("/users/approve/<int:user_id>", view_func=approve_user, methods=["POST"])
 api_bp.add_url_rule("/track-view", view_func=track_view, methods=["POST"])

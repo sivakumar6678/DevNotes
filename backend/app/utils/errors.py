@@ -18,3 +18,12 @@ class NotFoundError(APIError):
     def __init__(self, message: str, *, details: dict | None = None):
         super().__init__(message=message, status_code=404, error_type="not_found", details=details)
 
+
+class AuthenticationError(APIError):
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(message=message, status_code=401, error_type="authentication_error", details=details)
+
+
+class AuthorizationError(APIError):
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(message=message, status_code=403, error_type="authorization_error", details=details)

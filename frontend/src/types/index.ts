@@ -1,43 +1,58 @@
 export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  created_at?: string;
+  id: number
+  name: string
+  email: string
+  role: string
+  status: string
+  created_at?: string
 }
 
 export interface Note {
-  id?: number;
-  title: string;
-  slug: string;
-  topic: string;
-  versions: Record<string, NoteVersion>;
+  id?: number
+  title: string
+  slug: string
+  topic: string
+  label?: string
+  versions: Record<string, NoteVersion>
 }
 
 export interface NoteVersion {
-  definition?: string;
-  problem_it_solves?: string;
-  detailed_explanation?: string;
-  core_concepts?: Array<{ name?: string; explanation?: string }>;
-  how_it_works?: string;
-  syntax?: string;
-  code_example?: string;
-  practical_example?: string;
-  real_world_example?: string;
-  common_mistakes?: string[];
-  best_practices?: string[];
-  interview_notes?: string[];
+  definition?: string
+  problem_it_solves?: string
+  detailed_explanation?: string
+  core_concepts?: Array<{ name?: string; explanation?: string }>
+  how_it_works?: string
+  syntax?: string
+  code_example?: string
+  practical_example?: string
+  real_world_example?: string
+  common_mistakes?: string[]
+  best_practices?: string[]
+  interview_notes?: string[]
 }
 
 export interface Topic {
-  name: string;
-  slug: string;
-  children?: Topic[];
+  id?: number
+  name: string
+  slug: string
+  parent_id?: number | null
+  children?: Topic[]
 }
 
 export interface Technology {
-  name: string;
-  slug: string;
+  name: string
+  slug: string
+}
+
+export interface NoteOption {
+  id: number
+  topic_id: number
+  note_id?: number | null
+  name: string
+  title: string
+  slug: string
+  parent_id?: number | null
+  label: string
 }
 
 export interface NoteView {
@@ -48,34 +63,38 @@ export interface NoteView {
 }
 
 export interface ApiResponse<T> {
-  data?: T;
+  data?: T
   error?: {
-    type: string;
-    message: string;
-    details?: any;
-  };
+    type: string
+    message: string
+    details?: any
+  }
 }
 
 export interface LoginResponse {
-  token: string;
-  user: User;
+  token: string
+  user: User
 }
 
 export interface SignupResponse {
-  token: string;
-  user: User;
+  message: string
+  user: User
 }
 
 export interface NotesResponse {
-  notes: Note[];
+  notes: NoteOption[]
 }
 
-export interface NoteDetailResponse extends Note {}
+export interface UsersResponse {
+  users: User[]
+}
 
 export interface TopicsResponse {
-  topics: Topic[];
+  topics: Topic[]
 }
 
 export interface TechnologiesResponse {
-  technologies: Technology[];
+  technologies: Technology[]
 }
+
+export interface NoteDetailResponse extends Note {}

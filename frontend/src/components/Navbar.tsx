@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { getCurrentUser, logout } from '../api/auth'
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -9,6 +10,13 @@ const navItems = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const user = getCurrentUser()
+  const isAuthenticated = Boolean(user)
+
+  function handleLogout() {
+    logout()
+    setMenuOpen(false)
+  }
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-brand-border/80 bg-white/80 backdrop-blur-xl">
@@ -45,12 +53,25 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link to="/admin" className="brand-button-secondary">
-            Admin
-          </Link>
-          <Link to="/technologies" className="brand-button-primary">
-            Start Learning
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link to="/admin" className="brand-button-secondary">
+                Dashboard
+              </Link>
+              <Link to="/" onClick={handleLogout} className="brand-button-primary">
+                Logout
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="brand-button-secondary">
+                Login
+              </Link>
+              <Link to="/signup" className="brand-button-primary">
+                Signup
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -83,9 +104,25 @@ export default function Navbar() {
                 {item.label}
               </NavLink>
             ))}
-            <Link to="/technologies" onClick={() => setMenuOpen(false)} className="brand-button-primary mt-2">
-              Start Learning
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/admin" onClick={() => setMenuOpen(false)} className="brand-button-secondary mt-2">
+                  Dashboard
+                </Link>
+                <Link to="/" onClick={handleLogout} className="brand-button-primary">
+                  Logout
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="brand-button-secondary mt-2">
+                  Login
+                </Link>
+                <Link to="/signup" onClick={() => setMenuOpen(false)} className="brand-button-primary">
+                  Signup
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       ) : null}

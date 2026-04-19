@@ -25,19 +25,31 @@ export default function Topics() {
 
       return (
         <div key={topic.slug} className="space-y-3">
-          <button
-            type="button"
-            onClick={() => navigate(`/notes/${topic.slug}`)}
-            className={`flex w-full items-center justify-between rounded-[1.5rem] border border-brand-border bg-white ${paddingClass} py-5 text-left shadow-brand transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-float`}
-          >
-            <div>
-              <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
-              <p className="mt-2 text-sm text-brand-muted">
-                {hasChildren ? `Contains ${topic.children!.length} subtopic${topic.children!.length === 1 ? '' : 's'}` : 'Open note'}
-              </p>
+          {hasChildren ? (
+            <div
+              className={`flex w-full items-center justify-between rounded-[1.5rem] border border-brand-border bg-white ${paddingClass} py-5 text-left shadow-brand`}
+            >
+              <div>
+                <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
+                <p className="mt-2 text-sm text-brand-muted">
+                  Contains {topic.children!.length} subtopic{topic.children!.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <span className="text-sm font-semibold text-brand-orange">Module</span>
             </div>
-            <span className="text-sm font-semibold text-brand-orange">Read</span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate(`/notes/${topic.slug}`)}
+              className={`flex w-full items-center justify-between rounded-[1.5rem] border border-brand-border bg-white ${paddingClass} py-5 text-left shadow-brand transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-float`}
+            >
+              <div>
+                <h2 className="font-display text-2xl font-semibold tracking-tight text-brand-ink">{topic.name}</h2>
+                <p className="mt-2 text-sm text-brand-muted">Open note</p>
+              </div>
+              <span className="text-sm font-semibold text-brand-orange">Read</span>
+            </button>
+          )}
 
           {hasChildren ? <div className="space-y-4">{renderTopics(topic.children!, depth + 1)}</div> : null}
         </div>

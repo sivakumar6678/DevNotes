@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createNoteVersion, getAllNotes, getToken } from '../api/auth'
-
-interface NoteItem {
-  id: number
-  title: string
-}
+import type { NoteOption } from '../types'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const [notes, setNotes] = useState<NoteItem[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState('')
+  const [notes, setNotes] = useState<NoteOption[]>([])
+  const [selectedTopicId, setSelectedTopicId] = useState('')
   const [versionType, setVersionType] = useState('industry')
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,7 +35,7 @@ export default function AdminPage() {
     setError('')
     try {
       const parsedContent = JSON.parse(content)
-      await createNoteVersion(Number(selectedNoteId), versionType, parsedContent)
+      await createNoteVersion(Number(selectedTopicId), versionType, parsedContent)
       alert('Note version created successfully!')
       setContent('')
     } catch (err) {
@@ -62,15 +58,15 @@ export default function AdminPage() {
           </label>
           <select
             id="note"
-            value={selectedNoteId}
-            onChange={(e) => setSelectedNoteId(e.target.value)}
+            value={selectedTopicId}
+            onChange={(e) => setSelectedTopicId(e.target.value)}
             required
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
           >
             <option value="">Choose a note</option>
             {notes.map((note) => (
-              <option key={note.id} value={note.id}>
-                {note.title}
+              <option key={note.topic_id} value={note.topic_id}>
+                {note.label}
               </option>
             ))}
           </select>

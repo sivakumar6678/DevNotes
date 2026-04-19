@@ -63,12 +63,76 @@ DEMO_NOTES = {
 
 class NoteService:
     @staticmethod
+    def _topic_chain(topic: Topic) -> list[Topic]:
+        chain: list[Topic] = []
+        current = topic
+
+        while current is not None:
+            chain.append(current)
+            current = current.parent
+
+        return list(reversed(chain))
+
+    @staticmethod
+    def _is_leaf_topic(topic: Topic) -> bool:
+        return topic.children.count() == 0
+
+    @staticmethod
+    def _serialize_leaf_topic(topic: Topic, note: Note | None = None) -> dict:
+        topic_chain = NoteService._topic_chain(topic)
+        return {
+            "id": topic.id,
+            "topic_id": topic.id,
+            "note_id": note.id if note else None,
+            "name": topic.name,
+            "title": topic.name,
+            "slug": topic.slug,
+            "parent_id": topic.parent_id,
+            "label": " > ".join(item.name for item in topic_chain),
+        }
+
+    @staticmethod
+    def _get_leaf_topic_by_reference(*, topic_id: int | None = None, topic_slug: str | None = None) -> Topic:
+        topic = None
+        if topic_id is not None:
+            topic = db.session.get(Topic, topic_id)
+        elif topic_slug:
+            topic = Topic.query.filter_by(slug=topic_slug).first()
+
+        if not topic:
+            raise NotFoundError("Topic not found.")
+        if not NoteService._is_leaf_topic(topic):
+            raise ValidationError("Only leaf topics can be used as notes.")
+
+        return topic
+
+    @staticmethod
+    def get_or_create_note_for_topic(topic: Topic) -> Note:
+        note = Note.query.filter_by(topic_id=topic.id).first()
+        if note:
+            return note
+
+        note = Note(topic_id=topic.id, title=topic.name, slug=topic.slug)
+        db.session.add(note)
+        db.session.commit()
+        return note
+
+    @staticmethod
     def get_all_notes() -> list[dict]:
-        notes = Note.query.order_by(Note.title.asc()).all()
-        return [{"id": n.id, "title": n.title, "slug": n.slug} for n in notes]
+        leaf_topics = Topic.query.filter(~Topic.children.any()).order_by(Topic.name.asc()).all()
+        topic_ids = [topic.id for topic in leaf_topics]
+        notes = Note.query.filter(Note.topic_id.in_(topic_ids)).all() if topic_ids else []
+        notes_by_topic_id = {note.topic_id: note for note in notes}
+        return [NoteService._serialize_leaf_topic(topic, notes_by_topic_id.get(topic.id)) for topic in leaf_topics]
+
     @staticmethod
     def get_note_with_versions(slug: str) -> dict:
         note = Note.query.filter_by(slug=slug).first()
+        if not note:
+            topic = Topic.query.filter_by(slug=slug).first()
+            if topic and NoteService._is_leaf_topic(topic):
+                note = Note.query.filter_by(topic_id=topic.id).first()
+
         if not note:
             demo_note = DEMO_NOTES.get(slug)
             if demo_note:
@@ -81,25 +145,25 @@ class NoteService:
             .all()
         )
         versions_map = {v.version_type.value: v.content for v in versions}
+        topic_chain = NoteService._topic_chain(note.topic)
+        topic_path = " / ".join(item.name for item in topic_chain[:-1]) if len(topic_chain) > 1 else note.topic.name
 
         return {
             "id": note.id,
             "slug": note.slug,
             "title": note.title,
-            "topic": note.topic.name,
+            "topic": topic_path,
+            "label": " > ".join(item.name for item in topic_chain),
             "versions": versions_map,
         }
 
     @staticmethod
     def create_note(*, title: str, topic_slug: str | None, topic_id: int | None, slug: str | None) -> dict:
-        topic = None
-        if topic_id is not None:
-            topic = Topic.query.get(topic_id)
-        elif topic_slug:
-            topic = Topic.query.filter_by(slug=topic_slug).first()
+        topic = NoteService._get_leaf_topic_by_reference(topic_id=topic_id, topic_slug=topic_slug)
 
-        if not topic:
-            raise NotFoundError("Topic not found.")
+        existing = Note.query.filter_by(topic_id=topic.id).first()
+        if existing:
+            return {"id": existing.id, "topic_id": existing.topic_id, "title": existing.title, "slug": existing.slug}
 
         note_slug = slugify(slug or title)
         if Note.query.filter_by(slug=note_slug).first():
