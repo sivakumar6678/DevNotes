@@ -89,6 +89,13 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
+              onClick={() => navigate('/curriculum')}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-left text-slate-700 hover:bg-slate-50"
+            >
+              Curriculum
+            </button>
+            <button
+              type="button"
               onClick={handleLogout}
               className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-left text-slate-700 hover:bg-slate-50"
             >

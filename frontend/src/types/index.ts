@@ -36,12 +36,51 @@ export interface Topic {
   name: string
   slug: string
   parent_id?: number | null
+  level?: TopicLevel
+  created_at?: string | null
   children?: Topic[]
 }
 
 export interface Technology {
   name: string
   slug: string
+}
+
+export type TopicLevel = 'technology' | 'module' | 'topic'
+
+export interface CurriculumNode {
+  id: number
+  name: string
+  slug: string
+  parent_id: number | null
+  level: TopicLevel
+  created_at?: string | null
+  children: CurriculumNode[]
+}
+
+export interface TopicPayload {
+  name: string
+  parent_id: number | null
+  level: TopicLevel
+}
+
+export interface TopicNoteSummary {
+  id: number
+  topic_id: number
+  title: string
+  slug: string
+}
+
+export interface TopicNoteData {
+  topic: {
+    id: number
+    name: string
+    slug: string
+    level: TopicLevel
+    breadcrumb: string
+  }
+  note: TopicNoteSummary | null
+  versions: Record<string, NoteVersion>
 }
 
 export interface NoteOption {

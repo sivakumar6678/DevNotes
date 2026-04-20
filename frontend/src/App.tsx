@@ -9,7 +9,7 @@ import Technologies from './pages/Technologies'
 import Topics from './pages/Topics'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
-import AdminDashboard from './pages/AdminDashboard'
+import CurriculumEditorPage from './pages/CurriculumEditorPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const router = createBrowserRouter(
@@ -30,7 +30,15 @@ const router = createBrowserRouter(
           path: 'admin',
           element: (
             <ProtectedRoute requireAdmin>
-              <AdminDashboard />
+              <CurriculumEditorPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: 'curriculum',
+          element: (
+            <ProtectedRoute requireAdmin>
+              <CurriculumEditorPage />
             </ProtectedRoute>
           ),
         },

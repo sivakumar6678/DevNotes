@@ -30,3 +30,25 @@ def upsert_note_version():
         content=content,
     )
     return jsonify({"note_version": version}), 201
+
+
+@jwt_required()
+def create_note_version_for_topic(topic_id: int):
+    require_admin_user()
+    payload = request.get_json(silent=True) or {}
+
+    version_type = payload.get("version_type")
+    content = payload.get("content")
+
+    if not version_type:
+        raise ValidationError("`version_type` is required.")
+    if content is None:
+        raise ValidationError("`content` is required.")
+
+    version = VersionService.upsert_version(
+        note_id=None,
+        topic_id=topic_id,
+        version_type=version_type,
+        content=content,
+    )
+    return jsonify({"note_version": version}), 201

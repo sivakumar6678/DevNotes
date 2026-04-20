@@ -24,49 +24,110 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-8 px-4 py-16">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Login</h1>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
+      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative overflow-hidden rounded-[2rem] border border-brand-border bg-brand-ink px-8 py-10 text-white shadow-brand sm:px-10 sm:py-12">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.32),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.18),transparent_28%)]" />
+          <div className="relative space-y-8">
+            <span className="brand-pill border-orange-300 bg-white/10 text-orange-100">Welcome Back</span>
+            <div className="space-y-4">
+              <h1 className="max-w-lg font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                Sign in to continue building your learning workspace.
+              </h1>
+              <p className="max-w-xl text-base leading-8 text-slate-200">
+                Access your dashboard, manage notes, and keep your content workflow organized in one calm place.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                ['Structured', 'Clear paths for technologies, modules, and notes.'],
+                ['Fast', 'Jump into the dashboard and update content quickly.'],
+                ['Secure', 'Approval-based access with protected admin routes.'],
+              ].map(([title, description]) => (
+                <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <p className="text-sm font-semibold text-white">{title}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+              <p className="text-sm font-medium uppercase tracking-[0.26em] text-orange-100/90">Team Access</p>
+              <p className="mt-3 text-sm leading-7 text-slate-200">
+                If your account is pending approval, you can still sign in after an admin approves access from the management panel.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="brand-panel px-6 py-8 sm:px-8 sm:py-10">
+          <div className="mx-auto max-w-md space-y-8">
+            <div className="space-y-3">
+              <p className="brand-label">Account Login</p>
+              <h2 className="text-3xl font-semibold tracking-tight text-brand-ink">Login to your account</h2>
+              <p className="text-sm leading-7 text-brand-muted">
+                Enter your email and password to access your dashboard and continue your work.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-semibold text-brand-ink">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-semibold text-brand-ink">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Enter your password"
+                  className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-brand-orange px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
+
+            <div className="rounded-2xl border border-brand-border bg-brand-orangeSoft/60 px-4 py-4">
+              <p className="text-sm text-brand-muted">
+                Need an account?{' '}
+                <Link to="/signup" className="font-semibold text-brand-orange transition hover:text-orange-700">
+                  Create one here
+                </Link>
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-        {error && <p className="text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
-      <p className="text-center">
-        Don't have an account? <Link to="/signup" className="text-blue-600">Sign up</Link>
-      </p>
     </div>
   )
 }

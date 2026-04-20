@@ -118,6 +118,43 @@ class NoteService:
         return note
 
     @staticmethod
+    def get_note_for_topic(topic_id: int) -> dict:
+        topic = db.session.get(Topic, topic_id)
+        if not topic:
+            raise NotFoundError("Topic not found.")
+        if not NoteService._is_leaf_topic(topic):
+            raise ValidationError("Only topic-level nodes can have notes.")
+
+        topic_chain = NoteService._topic_chain(topic)
+        note = Note.query.filter_by(topic_id=topic.id).first()
+        versions_map: dict[str, dict] = {}
+
+        if note:
+            versions = (
+                NoteVersion.query.filter_by(note_id=note.id)
+                .order_by(NoteVersion.version_type.asc())
+                .all()
+            )
+            versions_map = {version.version_type.value: version.content for version in versions}
+
+        return {
+            "topic": {
+                "id": topic.id,
+                "name": topic.name,
+                "slug": topic.slug,
+                "level": getattr(topic.level, "value", topic.level),
+                "breadcrumb": " > ".join(item.name for item in topic_chain),
+            },
+            "note": {
+                "id": note.id,
+                "topic_id": note.topic_id,
+                "title": note.title,
+                "slug": note.slug,
+            } if note else None,
+            "versions": versions_map,
+        }
+
+    @staticmethod
     def get_all_notes() -> list[dict]:
         leaf_topics = Topic.query.filter(~Topic.children.any()).order_by(Topic.name.asc()).all()
         topic_ids = [topic.id for topic in leaf_topics]
