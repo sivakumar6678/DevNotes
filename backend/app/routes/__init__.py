@@ -2,13 +2,14 @@ from flask import Blueprint
 
 from .health_routes import health
 from .analytics_routes import track_view
-from .technologies_routes import list_technologies
+from .technologies_routes import list_technologies, create_technology
 from .notes_routes import get_all_notes, get_note_by_slug, get_note_by_topic
 from .topics_routes import (
     create_topic,
     delete_topic,
     get_curriculum,
     get_topics_tree,
+    get_children,
     list_leaf_topics,
     list_topics,
     list_topics_by_technology,
@@ -23,6 +24,7 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 api_bp.add_url_rule("/health", view_func=health, methods=["GET"])
 api_bp.add_url_rule("/technologies", view_func=list_technologies, methods=["GET"])
+api_bp.add_url_rule("/technologies", view_func=create_technology, methods=["POST"])
 api_bp.add_url_rule("/curriculum", view_func=get_curriculum, methods=["GET"])
 api_bp.add_url_rule("/topics/tree", view_func=get_topics_tree, methods=["GET"])
 api_bp.add_url_rule("/topics", view_func=list_topics, methods=["GET"])
@@ -30,7 +32,8 @@ api_bp.add_url_rule("/topics", view_func=create_topic, methods=["POST"])
 api_bp.add_url_rule("/topics/leaf", view_func=list_leaf_topics, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>", view_func=update_topic, methods=["PUT"])
 api_bp.add_url_rule("/topics/<int:topic_id>", view_func=delete_topic, methods=["DELETE"])
-api_bp.add_url_rule("/topics/<string:tech_slug>", view_func=list_topics_by_technology, methods=["GET"])
+api_bp.add_url_rule("/topics/<int:parent_id>/children", view_func=get_children, methods=["GET"])
+api_bp.add_url_rule("/topics/technology/<int:technology_id>", view_func=list_topics_by_technology, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>/note", view_func=get_note_by_topic, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>/note-version", view_func=create_note_version_for_topic, methods=["POST"])
 api_bp.add_url_rule("/notes/<string:slug>", view_func=get_note_by_slug, methods=["GET"])

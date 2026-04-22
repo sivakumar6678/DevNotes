@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import {
   fetchTechnologies,
-  fetchCurriculumByTech,
+  fetchCurriculum,
   fetchNoteByTopic,
   createVersion,
   createTopic,
+  createTechnology,
   updateTopic,
   deleteTopic,
 } from '../api/curriculum'
 import CurriculumTree from '../components/CurriculumTree'
 import EditorDrawer from '../components/EditorDrawer'
-import type { CurriculumNode, TopicNoteData, TopicLevel, Technology } from '../types'
+import type { CurriculumNode, TopicNoteData, Technology } from '../types'
 
 export default function CurriculumPage() {
   const [technologies, setTechnologies] = useState<Technology[]>([])
@@ -39,11 +40,14 @@ export default function CurriculumPage() {
 
   useEffect(() => {
     if (activeTechSlug) {
-      loadCurriculum(activeTechSlug)
+      const tech = technologies.find((t) => t.slug === activeTechSlug)
+      if (tech) {
+        loadCurriculum(tech.id)
+      }
     } else {
       setTree([])
     }
-  }, [activeTechSlug])
+  }, [activeTechSlug, technologies])
 
   async function loadTechnologies() {
     try {
@@ -57,11 +61,11 @@ export default function CurriculumPage() {
     }
   }
 
-  async function loadCurriculum(slug: string) {
+  async function loadCurriculum(id: number) {
     setLoading(true)
     setError('')
     try {
-      const data = await fetchCurriculumByTech(slug)
+      const data = await fetchCurriculum(id)
       setTree(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load curriculum.')
@@ -76,7 +80,8 @@ export default function CurriculumPage() {
     if (!name) return
 
     try {
-      await createTopic({ parent_id: null, name, level: 'technology' })
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      await createTechnology({ name, slug })
       setNewTechName('')
       setIsAddTechModalOpen(false)
       await loadTechnologies()
@@ -88,7 +93,7 @@ export default function CurriculumPage() {
   }
 
   async function handleNodeSelect(node: CurriculumNode) {
-    const nodeType = node.type ?? node.level
+    const nodeType = node.type
 
     setSelectedTopic(node)
 
@@ -138,10 +143,12 @@ export default function CurriculumPage() {
     }
   }
 
-  async function handleAddChild(parentId: number | null, name: string, level: TopicLevel) {
+  async function handleAddChild(parentId: number | null, name: string) {
     try {
-      await createTopic({ parent_id: parentId, name, level })
-      if (activeTechSlug) await loadCurriculum(activeTechSlug)
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      const tech = technologies.find((t) => t.slug === activeTechSlug)
+      if (!tech) return
+      await createTopic({ technology_id: tech.id, parent_id: parentId, name, slug })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add node')
     }
@@ -150,7 +157,8 @@ export default function CurriculumPage() {
   async function handleRenameNode(topicId: number, name: string) {
     try {
       await updateTopic(topicId, { name })
-      if (activeTechSlug) await loadCurriculum(activeTechSlug)
+      const tech = technologies.find((t) => t.slug === activeTechSlug)
+      if (tech) await loadCurriculum(tech.id)
       await loadTechnologies() // Reload tech names in tabs just in case it was a tech node (though tree only shows modules)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rename node')
@@ -164,7 +172,8 @@ export default function CurriculumPage() {
         setSelectedTopic(null)
         setIsDrawerOpen(false)
       }
-      if (activeTechSlug) await loadCurriculum(activeTechSlug)
+      const tech = technologies.find((t) => t.slug === activeTechSlug)
+      if (tech) await loadCurriculum(tech.id)
       await loadTechnologies()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete node')
@@ -196,11 +205,10 @@ export default function CurriculumPage() {
               <button
                 key={tech.slug}
                 onClick={() => setActiveTechSlug(tech.slug)}
-                className={`whitespace-nowrap border-b-2 px-1 pb-3 pt-2 text-sm font-medium transition ${
-                  activeTechSlug === tech.slug
+                className={`whitespace-nowrap border-b-2 px-1 pb-3 pt-2 text-sm font-medium transition ${activeTechSlug === tech.slug
                     ? 'border-brand-orange text-brand-orange'
                     : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-                }`}
+                  }`}
               >
                 {tech.name}
               </button>
@@ -259,7 +267,7 @@ export default function CurriculumPage() {
             </button>
             <h3 className="text-lg font-semibold text-slate-900">Add New Technology</h3>
             <p className="mt-1 text-sm text-slate-500">Create a root technology to organize modules and topics.</p>
-            
+
             <form onSubmit={handleAddTech} className="mt-5 space-y-4">
               <div>
                 <label htmlFor="techName" className="block text-sm font-medium text-slate-700">

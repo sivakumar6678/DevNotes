@@ -30,32 +30,37 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 function normalizeCurriculumNode(node: CurriculumNode): CurriculumNode {
-  const type = node.type ?? node.level
-
   return {
     ...node,
-    type,
-    level: type,
     children: node.children.map(normalizeCurriculumNode),
   }
 }
 
-export async function fetchCurriculum(): Promise<CurriculumNode[]> {
-  const nodes = await apiFetch<CurriculumNode[]>('/api/topics/tree')
+export async function fetchCurriculum(technologyId: number): Promise<CurriculumNode[]> {
+  const nodes = await apiFetch<CurriculumNode[]>(`/api/topics/technology/${technologyId}`)
   return nodes.map(normalizeCurriculumNode)
 }
 
 export async function fetchTechnologies(): Promise<Technology[]> {
-  const response = await apiFetch<{ status: string; data: Technology[] }>('/api/technologies')
+  const response = await apiFetch<{ data: Technology[] }>('/api/technologies')
   return response.data || []
 }
 
-export async function fetchCurriculumByTech(slug: string): Promise<CurriculumNode[]> {
-  const nodes = await apiFetch<CurriculumNode[]>(`/api/topics/${slug}`)
+export async function createTechnology(payload: { name: string, slug: string, description?: string }): Promise<Technology> {
+  const response = await apiFetch<{ technology: Technology }>('/api/technologies', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.technology
+}
+
+export async function fetchCurriculumByParentId(parentId: number): Promise<CurriculumNode[]> {
+  const nodes = await apiFetch<CurriculumNode[]>(`/api/topics/${parentId}/children`)
   return nodes.map(normalizeCurriculumNode)
 }
 
 export async function createTopic(payload: TopicPayload): Promise<Topic> {
+  console.log('DEBUG: Sending createTopic payload:', payload)
   const response = await apiFetch<{ topic: Topic }>('/api/topics', {
     method: 'POST',
     body: JSON.stringify(payload),

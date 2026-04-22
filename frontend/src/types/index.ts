@@ -35,8 +35,9 @@ export interface Topic {
   id?: number
   name: string
   slug: string
+  technology_id?: number
   parent_id?: number | null
-  level?: TopicLevel
+  type?: 'module' | 'topic'
   created_at?: string | null
   children?: Topic[]
 }
@@ -47,23 +48,24 @@ export interface Technology {
   slug: string
 }
 
-export type TopicLevel = 'technology' | 'module' | 'topic'
+// Removed TopicType enum
 
 export interface CurriculumNode {
   id: number
   name: string
   slug: string
+  technology_id: number
   parent_id: number | null
-  type?: TopicLevel
-  level: TopicLevel
+  type: 'module' | 'topic'
   created_at?: string | null
   children: CurriculumNode[]
 }
 
 export interface TopicPayload {
   name: string
+  slug: string
+  technology_id: number
   parent_id: number | null
-  level: TopicLevel
 }
 
 export interface TopicNoteSummary {
@@ -78,7 +80,8 @@ export interface TopicNoteData {
     id: number
     name: string
     slug: string
-    level: TopicLevel
+    technology_id: number
+    type: 'module' | 'topic'
     breadcrumb: string
   }
   note: TopicNoteSummary | null

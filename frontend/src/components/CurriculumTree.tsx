@@ -1,21 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
-import type { CurriculumNode, TopicLevel } from '../types'
+import type { CurriculumNode } from '../types'
 
 interface CurriculumTreeProps {
   nodes: CurriculumNode[]
   techId: number
   selectedId: number | null
   onSelect: (node: CurriculumNode) => void
-  onAddChild?: (parentId: number | null, name: string, level: TopicLevel) => Promise<void> | void
+  onAddChild?: (parentId: number | null, name: string) => Promise<void> | void
   onRename?: (nodeId: number, newName: string) => Promise<void> | void
   onDelete?: (nodeId: number) => Promise<void> | void
 }
 
 const indent = ['pl-2', 'pl-6', 'pl-10', 'pl-14']
 
-function getNodeType(node: CurriculumNode): TopicLevel {
-  return node.type ?? node.level
+function getNodeType(node: CurriculumNode): 'module' | 'topic' {
+  return node.parent_id === null ? 'module' : 'topic'
 }
 
 function collectOpenState(nodes: CurriculumNode[], current: Record<number, boolean>) {
@@ -90,11 +90,10 @@ export default function CurriculumTree({
       if (action === 'add' && onAddChild) {
         if (addingToNodeId === 'root') {
           // Adding a Module directly to the Technology
-          onAddChild(techId, val, 'module')
+          onAddChild(null, val)
         } else if (node) {
-          // Topics can't have children based on current level logic, but if backend allowed nested topics:
-          const childLevel = getNodeType(node) === 'technology' ? 'module' : 'topic'
-          onAddChild(node.id, val, childLevel)
+          // Add Topic under Module
+          onAddChild(node.id, val)
           setExpanded((current) => ({ ...current, [node.id]: true }))
         }
       } else if (action === 'rename' && onRename && node) {

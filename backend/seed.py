@@ -3,7 +3,7 @@ import json
 from app import create_app
 from app.services.auth_service import AuthService
 from app.utils.db import db
-from app.models import NoteVersion, Topic, VersionType
+from app.models import NoteVersion, Topic, Technology, VersionType
 from app.utils.slugify import slugify
 
 
@@ -43,58 +43,96 @@ INDUSTRY_CONTENT = {
     "interview_notes": ["Mention performance implications and stale-closure pitfalls."],
 }
 
-
 def main() -> None:
     app = create_app()
     with app.app_context():
+        # Make sure DB schema is up to date (we assume migrate_db.py was run)
         db.create_all()
         AuthService.ensure_user_schema()
         AuthService.ensure_admin_account()
 
-        tech_slug = slugify("JavaScript")
-        technology = Topic.query.filter_by(slug=tech_slug).first()
-        if not technology:
-            technology = Topic(name="JavaScript", slug=tech_slug, description="Notes about JavaScript fundamentals.")
-            db.session.add(technology)
-            db.session.flush()
-
-        module_slug = slugify("Functions")
-        module = Topic.query.filter_by(slug=module_slug).first()
-        if not module:
-            module = Topic(
-                name="Functions",
-                slug=module_slug,
-                description="Functions module in JavaScript.",
-                parent_id=technology.id,
-            )
-            db.session.add(module)
-            db.session.flush()
-
-        topic_slug = slugify("Closures")
-        topic = Topic.query.filter_by(slug=topic_slug).first()
-        if not topic:
-            topic = Topic(
-                name="Closures",
-                slug=topic_slug,
-                description="Closures note in JavaScript.",
-                parent_id=module.id,
-            )
-            db.session.add(topic)
-            db.session.flush()
-
-        def upsert_version(vt: VersionType, content: dict) -> None:
-            existing = NoteVersion.query.filter_by(topic_id=topic.id, version_type=vt).first()
+        def upsert_version(topic_id: int, vt: VersionType, content: dict) -> None:
+            existing = NoteVersion.query.filter_by(topic_id=topic_id, version_type=vt).first()
             payload = json.loads(json.dumps(content))
             if existing:
                 existing.content = payload
             else:
-                db.session.add(NoteVersion(topic_id=topic.id, version_type=vt, content=payload))
+                db.session.add(NoteVersion(topic_id=topic_id, version_type=vt, content=payload))
 
-        upsert_version(VersionType.SIMPLE, SIMPLE_CONTENT)
-        upsert_version(VersionType.INDUSTRY, INDUSTRY_CONTENT)
+        # --- SEED JAVASCRIPT ---
+        js_slug = slugify("JavaScript")
+        js_tech = Technology.query.filter_by(slug=js_slug).first()
+        if not js_tech:
+            js_tech = Technology(name="JavaScript", slug=js_slug, description="Notes about JavaScript fundamentals.")
+            db.session.add(js_tech)
+            db.session.flush()
+
+        js_module_slug = slugify("Functions")
+        js_module = Topic.query.filter_by(slug=js_module_slug, technology_id=js_tech.id).first()
+        if not js_module:
+            js_module = Topic(
+                name="Functions",
+                slug=js_module_slug,
+                description="Functions module in JavaScript.",
+                technology_id=js_tech.id,
+                parent_id=None,
+            )
+            db.session.add(js_module)
+            db.session.flush()
+
+        closure_slug = slugify("Closures")
+        closure_topic = Topic.query.filter_by(slug=closure_slug, technology_id=js_tech.id).first()
+        if not closure_topic:
+            closure_topic = Topic(
+                name="Closures",
+                slug=closure_slug,
+                description="Closures note in JavaScript.",
+                technology_id=js_tech.id,
+                parent_id=js_module.id,
+            )
+            db.session.add(closure_topic)
+            db.session.flush()
+        
+        upsert_version(closure_topic.id, VersionType.SIMPLE, SIMPLE_CONTENT)
+        upsert_version(closure_topic.id, VersionType.INDUSTRY, INDUSTRY_CONTENT)
+
+
+        # --- SEED REACT ---
+        react_slug = slugify("React")
+        react_tech = Technology.query.filter_by(slug=react_slug).first()
+        if not react_tech:
+            react_tech = Technology(name="React", slug=react_slug, description="Frontend library for building user interfaces.")
+            db.session.add(react_tech)
+            db.session.flush()
+
+        hooks_module_slug = slugify("Hooks")
+        hooks_module = Topic.query.filter_by(slug=hooks_module_slug, technology_id=react_tech.id).first()
+        if not hooks_module:
+            hooks_module = Topic(
+                name="Hooks",
+                slug=hooks_module_slug,
+                description="Core React Hooks",
+                technology_id=react_tech.id,
+                parent_id=None,
+            )
+            db.session.add(hooks_module)
+            db.session.flush()
+
+        use_effect_slug = slugify("useEffect")
+        use_effect_topic = Topic.query.filter_by(slug=use_effect_slug, technology_id=react_tech.id).first()
+        if not use_effect_topic:
+            use_effect_topic = Topic(
+                name="useEffect",
+                slug=use_effect_slug,
+                description="Handle side effects in React.",
+                technology_id=react_tech.id,
+                parent_id=hooks_module.id,
+            )
+            db.session.add(use_effect_topic)
+            db.session.flush()
 
         db.session.commit()
-        print("Seeded: JavaScript > Functions > Closures with simple+industry versions")
+        print("Seeded: JavaScript and React sample data successfully!")
 
 
 if __name__ == "__main__":
