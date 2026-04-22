@@ -4,82 +4,11 @@ from datetime import datetime
 
 from sqlalchemy import func, inspect, text
 
-from app.models import Note, NoteVersion, Topic, TopicLevel
+from app.models import NoteView, NoteVersion, Topic, TopicLevel
 from app.utils.db import db
 from app.utils.errors import NotFoundError, ValidationError
 from app.utils.slugify import slugify
 
-
-DEMO_CURRICULUM = [
-    {
-        "id": None,
-        "name": "JavaScript",
-        "slug": "javascript",
-        "level": TopicLevel.TECHNOLOGY.value,
-        "children": [
-            {
-                "id": None,
-                "name": "Functions",
-                "slug": "functions",
-                "level": TopicLevel.MODULE.value,
-                "children": [
-                    {
-                        "id": None,
-                        "name": "Closures",
-                        "slug": "closures",
-                        "level": TopicLevel.TOPIC.value,
-                        "children": [],
-                    }
-                ],
-            },
-            {
-                "id": None,
-                "name": "Async",
-                "slug": "async",
-                "level": TopicLevel.MODULE.value,
-                "children": [
-                    {
-                        "id": None,
-                        "name": "Promises",
-                        "slug": "promises",
-                        "level": TopicLevel.TOPIC.value,
-                        "children": [],
-                    }
-                ],
-            },
-        ],
-    },
-    {
-        "id": None,
-        "name": "React",
-        "slug": "react",
-        "level": TopicLevel.TECHNOLOGY.value,
-        "children": [
-            {
-                "id": None,
-                "name": "Core",
-                "slug": "react-core",
-                "level": TopicLevel.MODULE.value,
-                "children": [
-                    {
-                        "id": None,
-                        "name": "Components",
-                        "slug": "components",
-                        "level": TopicLevel.TOPIC.value,
-                        "children": [],
-                    },
-                    {
-                        "id": None,
-                        "name": "Hooks",
-                        "slug": "hooks",
-                        "level": TopicLevel.TOPIC.value,
-                        "children": [],
-                    },
-                ],
-            }
-        ],
-    },
-]
 
 
 class TopicService:
@@ -186,20 +115,13 @@ class TopicService:
             .order_by(Topic.name.asc())
             .all()
         )
-        if technologies:
-            return [{"name": topic.name, "slug": topic.slug} for topic in technologies]
-
-        return [{"name": topic["name"], "slug": topic["slug"]} for topic in DEMO_CURRICULUM]
+        return [{"id": topic.id, "name": topic.name, "slug": topic.slug} for topic in technologies]
 
     @staticmethod
     def list_topics_by_technology(tech_slug: str) -> list[dict]:
         technology = Topic.query.filter_by(slug=tech_slug, level=TopicLevel.TECHNOLOGY).first()
         if technology:
             return [TopicService._serialize_tree_node(child) for child in technology.children.order_by(Topic.name.asc()).all()]
-
-        demo = next((item for item in DEMO_CURRICULUM if item["slug"] == tech_slug), None)
-        if demo:
-            return demo["children"]
 
         raise NotFoundError("Technology not found.")
 
@@ -328,12 +250,8 @@ class TopicService:
         topic = TopicService._get_topic(topic_id)
         topic_ids = TopicService._collect_descendant_ids(topic)
 
-        notes = Note.query.filter(Note.topic_id.in_(topic_ids)).all()
-        note_ids = [note.id for note in notes]
-        if note_ids:
-            NoteVersion.query.filter(NoteVersion.note_id.in_(note_ids)).delete(synchronize_session=False)
-            Note.query.filter(Note.id.in_(note_ids)).delete(synchronize_session=False)
-
+        NoteVersion.query.filter(NoteVersion.topic_id.in_(topic_ids)).delete(synchronize_session=False)
+        NoteView.query.filter(NoteView.topic_id.in_(topic_ids)).delete(synchronize_session=False)
         Topic.query.filter(Topic.id.in_(topic_ids)).delete(synchronize_session=False)
         db.session.commit()
 

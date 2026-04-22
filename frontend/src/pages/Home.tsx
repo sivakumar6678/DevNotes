@@ -1,7 +1,46 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { featureHighlights, popularTopics, recentNotes } from '../data/docsData'
+import { getTechnologies } from '../api/api'
+import type { Technology } from '../types'
+
+const ACCENT_COLORS = ['bg-orange-500', 'bg-amber-400', 'bg-slate-900', 'bg-orange-300']
 
 export default function Home() {
+  const [technologies, setTechnologies] = useState<Technology[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTechnologies() {
+      try {
+        setLoading(true)
+        setError('')
+        const data = await getTechnologies()
+        console.log('Technologies fetched for Home:', data)
+        if (!cancelled) {
+          setTechnologies(data)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load technologies.')
+          console.error(err)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadTechnologies()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="mx-auto max-w-7xl space-y-16 px-6 lg:px-8">
       <section className="brand-panel brand-grid overflow-hidden py-16">
@@ -69,69 +108,39 @@ export default function Home() {
             </h2>
           </div>
         </div>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {popularTopics.map((topic) => (
-            <article
-              key={topic.name}
-              className="group rounded-[1.75rem] border border-brand-border bg-white p-5 shadow-brand transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-float"
-            >
-              <div className={`h-2 w-20 rounded-full ${topic.accent}`} />
-              <h3 className="mt-5 font-display text-xl font-semibold tracking-tight text-brand-ink">{topic.name}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-brand-muted">{topic.description}</p>
-              <div className="mt-5 inline-flex items-center text-sm font-semibold text-brand-orange">
-                Explore topic
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
 
-      <section className="grid gap-6 py-16 lg:grid-cols-3">
-        {featureHighlights.map((feature) => (
-          <article key={feature.title} className="rounded-[1.75rem] border border-brand-border bg-white/85 p-6 shadow-brand backdrop-blur-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-orange-600">Why it works</p>
-            <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight text-brand-ink">{feature.title}</h3>
-            <p className="mt-3 leading-relaxed text-brand-muted">{feature.description}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="space-y-5 py-16">
-        <div>
-          <p className="brand-label">Recent notes</p>
-          <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight text-brand-ink">
-            Fresh reading paths for focused study
-          </h2>
-        </div>
-        <div className="grid gap-6 xl:grid-cols-3">
-          {recentNotes.map((note) => (
-            <article
-              key={note.slug}
-              className="rounded-[1.75rem] border border-brand-border bg-white p-6 shadow-brand transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-float"
-            >
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-semibold text-orange-600">{note.topic}</p>
-                  <h3 className="mt-2 font-display text-2xl font-semibold tracking-tight text-brand-ink">{note.title}</h3>
-                </div>
-                <p className="leading-relaxed text-brand-muted">{note.summary}</p>
-                <div className="flex flex-wrap gap-2">
-                  {note.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-orange-200 bg-brand-orangeSoft px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-orange-700"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <Link to={`/notes/${note.slug}`} className="brand-button-primary mt-6">
-                Open note
-              </Link>
-            </article>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center text-sm text-brand-muted py-12">Loading technologies...</div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : technologies.length === 0 ? (
+          <div className="rounded-[1.75rem] border border-brand-border bg-white p-12 text-center shadow-brand">
+            <p className="text-lg font-medium text-brand-ink">No curriculum found. Please create a technology first.</p>
+            <Link to="/curriculum" className="mt-4 inline-block text-brand-orange font-semibold">
+              Go to Curriculum Builder
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {technologies.map((tech, index) => (
+              <article
+                key={tech.slug}
+                className="group rounded-[1.75rem] border border-brand-border bg-white p-5 shadow-brand transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-float"
+              >
+                <div className={`h-2 w-20 rounded-full ${ACCENT_COLORS[index % ACCENT_COLORS.length]}`} />
+                <h3 className="mt-5 font-display text-xl font-semibold tracking-tight text-brand-ink">{tech.name}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-brand-muted">
+                  Explore the curriculum and modules for {tech.name}.
+                </p>
+                <Link to={`/topics/${tech.slug}`} className="mt-5 inline-flex items-center text-sm font-semibold text-brand-orange">
+                  Explore topic
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

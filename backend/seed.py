@@ -3,7 +3,7 @@ import json
 from app import create_app
 from app.services.auth_service import AuthService
 from app.utils.db import db
-from app.models import Note, NoteVersion, Topic, VersionType
+from app.models import NoteVersion, Topic, VersionType
 from app.utils.slugify import slugify
 
 
@@ -82,20 +82,13 @@ def main() -> None:
             db.session.add(topic)
             db.session.flush()
 
-        note_slug = slugify("Closures")
-        note = Note.query.filter_by(slug=note_slug).first()
-        if not note:
-            note = Note(topic_id=topic.id, title="Closures", slug=note_slug)
-            db.session.add(note)
-            db.session.flush()
-
         def upsert_version(vt: VersionType, content: dict) -> None:
-            existing = NoteVersion.query.filter_by(note_id=note.id, version_type=vt).first()
+            existing = NoteVersion.query.filter_by(topic_id=topic.id, version_type=vt).first()
             payload = json.loads(json.dumps(content))
             if existing:
                 existing.content = payload
             else:
-                db.session.add(NoteVersion(note_id=note.id, version_type=vt, content=payload))
+                db.session.add(NoteVersion(topic_id=topic.id, version_type=vt, content=payload))
 
         upsert_version(VersionType.SIMPLE, SIMPLE_CONTENT)
         upsert_version(VersionType.INDUSTRY, INDUSTRY_CONTENT)

@@ -1,4 +1,4 @@
-import type { CurriculumNode, Topic, TopicNoteData, TopicPayload } from '../types'
+import type { CurriculumNode, Topic, TopicNoteData, TopicPayload, Technology } from '../types'
 import { getToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -29,8 +29,30 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return data as T
 }
 
+function normalizeCurriculumNode(node: CurriculumNode): CurriculumNode {
+  const type = node.type ?? node.level
+
+  return {
+    ...node,
+    type,
+    level: type,
+    children: node.children.map(normalizeCurriculumNode),
+  }
+}
+
 export async function fetchCurriculum(): Promise<CurriculumNode[]> {
-  return apiFetch<CurriculumNode[]>('/api/topics/tree')
+  const nodes = await apiFetch<CurriculumNode[]>('/api/topics/tree')
+  return nodes.map(normalizeCurriculumNode)
+}
+
+export async function fetchTechnologies(): Promise<Technology[]> {
+  const response = await apiFetch<{ status: string; data: Technology[] }>('/api/technologies')
+  return response.data || []
+}
+
+export async function fetchCurriculumByTech(slug: string): Promise<CurriculumNode[]> {
+  const nodes = await apiFetch<CurriculumNode[]>(`/api/topics/${slug}`)
+  return nodes.map(normalizeCurriculumNode)
 }
 
 export async function createTopic(payload: TopicPayload): Promise<Topic> {
@@ -60,8 +82,8 @@ export async function fetchNoteByTopic(topicId: number): Promise<TopicNoteData> 
 }
 
 export async function createVersion(topicId: number, versionType: string, content: object) {
-  return apiFetch<{ note_version: unknown }>(`/api/topics/${topicId}/note-version`, {
+  return apiFetch<{ note_version: unknown }>('/api/note-version', {
     method: 'POST',
-    body: JSON.stringify({ version_type: versionType, content }),
+    body: JSON.stringify({ topic_id: topicId, version_type: versionType, content }),
   })
 }

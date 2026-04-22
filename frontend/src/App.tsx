@@ -9,7 +9,7 @@ import Technologies from './pages/Technologies'
 import Topics from './pages/Topics'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
-import CurriculumEditorPage from './pages/CurriculumEditorPage'
+import CurriculumPage from './pages/CurriculumPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const router = createBrowserRouter(
@@ -30,7 +30,7 @@ const router = createBrowserRouter(
           path: 'admin',
           element: (
             <ProtectedRoute requireAdmin>
-              <CurriculumEditorPage />
+              <CurriculumPage />
             </ProtectedRoute>
           ),
         },
@@ -38,7 +38,7 @@ const router = createBrowserRouter(
           path: 'curriculum',
           element: (
             <ProtectedRoute requireAdmin>
-              <CurriculumEditorPage />
+              <CurriculumPage />
             </ProtectedRoute>
           ),
         },

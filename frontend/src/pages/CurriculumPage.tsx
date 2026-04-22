@@ -1,60 +1,68 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Plus, X } from 'lucide-react'
+import {
+  fetchTechnologies,
+  fetchCurriculumByTech,
+  fetchNoteByTopic,
+  createVersion,
+  createTopic,
+  updateTopic,
+  deleteTopic,
+} from '../api/curriculum'
 import CurriculumTree from '../components/CurriculumTree'
-import { createTopic, deleteTopic, fetchCurriculum, updateTopic } from '../api/curriculum'
-import type { CurriculumNode, TopicLevel } from '../types'
-
-function flattenNodes(nodes: CurriculumNode[]): CurriculumNode[] {
-  return nodes.flatMap((node) => [node, ...flattenNodes(node.children)])
-}
-
-function getChildLevel(level: TopicLevel | null): TopicLevel | null {
-  if (level === null) return 'technology'
-  if (level === 'technology') return 'module'
-  if (level === 'module') return 'topic'
-  return null
-}
-
-function actionLabel(level: TopicLevel | null): string {
-  const childLevel = getChildLevel(level)
-  if (!childLevel) return 'No child nodes available'
-  if (childLevel === 'technology') return 'Add Technology'
-  if (childLevel === 'module') return 'Add Module'
-  return 'Add Topic'
-}
+import EditorDrawer from '../components/EditorDrawer'
+import type { CurriculumNode, TopicNoteData, TopicLevel, Technology } from '../types'
 
 export default function CurriculumPage() {
-  const [tree, setTree] = useState<CurriculumNode[]>([])
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [statusMessage, setStatusMessage] = useState('')
-  const [newNodeName, setNewNodeName] = useState('')
-  const [editName, setEditName] = useState('')
+  const [technologies, setTechnologies] = useState<Technology[]>([])
+  const [activeTechSlug, setActiveTechSlug] = useState<string | null>(null)
 
-  const allNodes = useMemo(() => flattenNodes(tree), [tree])
-  const selectedNode = allNodes.find((node) => node.id === selectedId) || null
-  const nextLevel = getChildLevel(selectedNode?.level ?? null)
+  const [tree, setTree] = useState<CurriculumNode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [selectedTopic, setSelectedTopic] = useState<CurriculumNode | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [noteData, setNoteData] = useState<TopicNoteData | null>(null)
+  const [drawerLoading, setDrawerLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('')
+  const [drawerError, setDrawerError] = useState('')
+  const [selectionMessage, setSelectionMessage] = useState('')
+
+  const [isAddTechModalOpen, setIsAddTechModalOpen] = useState(false)
+  const [newTechName, setNewTechName] = useState('')
 
   useEffect(() => {
-    loadCurriculum()
+    loadTechnologies()
   }, [])
 
   useEffect(() => {
-    setEditName(selectedNode?.name ?? '')
-  }, [selectedNode])
+    if (activeTechSlug) {
+      loadCurriculum(activeTechSlug)
+    } else {
+      setTree([])
+    }
+  }, [activeTechSlug])
 
-  async function loadCurriculum() {
+  async function loadTechnologies() {
+    try {
+      const data = await fetchTechnologies()
+      setTechnologies(data)
+      if (data.length > 0 && !activeTechSlug) {
+        setActiveTechSlug(data[0].slug)
+      }
+    } catch (err) {
+      setError('Unable to load technologies.')
+    }
+  }
+
+  async function loadCurriculum(slug: string) {
     setLoading(true)
     setError('')
-
     try {
-      const data = await fetchCurriculum()
+      const data = await fetchCurriculumByTech(slug)
       setTree(data)
-      if (selectedId && !flattenNodes(data).some((node) => node.id === selectedId)) {
-        setSelectedId(null)
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load curriculum.')
     } finally {
@@ -62,204 +70,245 @@ export default function CurriculumPage() {
     }
   }
 
-  async function handleAddNode(e: React.FormEvent) {
+  async function handleAddTech(e: React.FormEvent) {
     e.preventDefault()
-    if (!nextLevel) {
+    const name = newTechName.trim()
+    if (!name) return
+
+    try {
+      await createTopic({ parent_id: null, name, level: 'technology' })
+      setNewTechName('')
+      setIsAddTechModalOpen(false)
+      await loadTechnologies()
+      // Note: we might want to set the new tech as active, but backend doesn't return the slug in a predictable way unless we slugify it.
+      // Re-fetching technologies will update the list.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create technology')
+    }
+  }
+
+  async function handleNodeSelect(node: CurriculumNode) {
+    const nodeType = node.type ?? node.level
+
+    setSelectedTopic(node)
+
+    if (nodeType !== 'topic') {
+      setIsDrawerOpen(false)
+      setNoteData(null)
+      setSelectionMessage('Only topic nodes can be edited.')
+      setTimeout(() => setSelectionMessage(''), 3000)
       return
     }
 
-    setSaving(true)
-    setError('')
-    setStatusMessage('')
+    setSelectionMessage('')
+
+    setIsDrawerOpen(true)
+    setDrawerLoading(true)
+    setNoteData(null)
 
     try {
-      await createTopic({
-        name: newNodeName,
-        parent_id: selectedNode?.id ?? null,
-        level: nextLevel,
-      })
-      setNewNodeName('')
-      setStatusMessage(`${actionLabel(selectedNode?.level ?? null)} created successfully.`)
-      await loadCurriculum()
+      const data = await fetchNoteByTopic(node.id)
+      setNoteData(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create node.')
+      console.error('Failed to load note:', err)
+    } finally {
+      setDrawerLoading(false)
+    }
+  }
+
+  function handleCloseDrawer() {
+    setIsDrawerOpen(false)
+  }
+
+  async function handleSaveVersion(versionType: string, content: object) {
+    if (!selectedTopic) return
+
+    setSaving(true)
+    setSaveStatus('')
+    setDrawerError('')
+
+    try {
+      await createVersion(selectedTopic.id, versionType, content)
+      setSaveStatus('Note content saved successfully.')
+      setTimeout(() => setSaveStatus(''), 3000)
+    } catch (err) {
+      setDrawerError(err instanceof Error ? err.message : 'Unable to save note.')
     } finally {
       setSaving(false)
     }
   }
 
-  async function handleUpdateNode(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedNode) {
-      return
-    }
-
-    setSaving(true)
-    setError('')
-    setStatusMessage('')
-
+  async function handleAddChild(parentId: number | null, name: string, level: TopicLevel) {
     try {
-      await updateTopic(selectedNode.id, { name: editName })
-      setStatusMessage('Node updated successfully.')
-      await loadCurriculum()
+      await createTopic({ parent_id: parentId, name, level })
+      if (activeTechSlug) await loadCurriculum(activeTechSlug)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update node.')
-    } finally {
-      setSaving(false)
+      setError(err instanceof Error ? err.message : 'Failed to add node')
     }
   }
 
-  async function handleDeleteNode() {
-    if (!selectedNode) {
-      return
-    }
-
-    const confirmed = window.confirm(`Delete "${selectedNode.name}" and all of its children?`)
-    if (!confirmed) {
-      return
-    }
-
-    setSaving(true)
-    setError('')
-    setStatusMessage('')
-
+  async function handleRenameNode(topicId: number, name: string) {
     try {
-      await deleteTopic(selectedNode.id)
-      setSelectedId(null)
-      setStatusMessage('Node deleted successfully.')
-      await loadCurriculum()
+      await updateTopic(topicId, { name })
+      if (activeTechSlug) await loadCurriculum(activeTechSlug)
+      await loadTechnologies() // Reload tech names in tabs just in case it was a tech node (though tree only shows modules)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to delete node.')
-    } finally {
-      setSaving(false)
+      setError(err instanceof Error ? err.message : 'Failed to rename node')
     }
   }
+
+  async function handleDeleteNode(topicId: number) {
+    try {
+      await deleteTopic(topicId)
+      if (selectedTopic?.id === topicId) {
+        setSelectedTopic(null)
+        setIsDrawerOpen(false)
+      }
+      if (activeTechSlug) await loadCurriculum(activeTechSlug)
+      await loadTechnologies()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete node')
+    }
+  }
+
+  const activeTech = technologies.find((t) => t.slug === activeTechSlug)
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6">
-      <section className="brand-panel p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="brand-label">Curriculum Management</p>
-            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-brand-ink sm:text-5xl">
-              Build the syllabus tree with a clean editor.
-            </h1>
-            <p className="mt-4 max-w-3xl text-lg leading-8 text-brand-muted">
-              Organize technologies, modules, and topics in one place, then keep the learning platform structured as it grows.
-            </p>
-          </div>
-          <Link to="/admin" className="brand-button-secondary">
-            Back to Admin
-          </Link>
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-[2rem] border border-brand-border bg-white p-6 shadow-brand">
-          <div className="mb-5 flex items-center justify-between">
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-slate-200 px-6 pt-5">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-center justify-between pb-4">
             <div>
-              <p className="brand-label">Tree View</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-brand-ink">
-                Curriculum Structure
-              </h2>
+              <h1 className="text-3xl font-semibold text-slate-900">Curriculum Builder</h1>
+              <p className="mt-1 text-sm text-slate-600">Select a technology to manage its curriculum</p>
             </div>
-            <button type="button" onClick={loadCurriculum} className="brand-button-secondary">
-              Refresh
+            <button
+              onClick={() => setIsAddTechModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+            >
+              <Plus className="h-4 w-4" />
+              Add Technology
             </button>
           </div>
 
-          {loading ? (
-            <p className="text-sm text-brand-muted">Loading curriculum...</p>
-          ) : (
-            <CurriculumTree nodes={tree} selectedId={selectedId} onSelect={(node) => setSelectedId(node.id)} />
-          )}
-        </section>
+          <div className="flex gap-6 overflow-x-auto border-t border-slate-200 pt-2 hide-scrollbar">
+            {technologies.map((tech) => (
+              <button
+                key={tech.slug}
+                onClick={() => setActiveTechSlug(tech.slug)}
+                className={`whitespace-nowrap border-b-2 px-1 pb-3 pt-2 text-sm font-medium transition ${
+                  activeTechSlug === tech.slug
+                    ? 'border-brand-orange text-brand-orange'
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                }`}
+              >
+                {tech.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
 
-        <section className="rounded-[2rem] border border-brand-border bg-white p-6 shadow-brand">
-          <div className="space-y-6">
-            <div>
-              <p className="brand-label">Action Panel</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-brand-ink">
-                {selectedNode ? selectedNode.name : 'Add a technology to begin'}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-brand-muted">
-                {selectedNode
-                  ? `Selected ${selectedNode.level}. Add children where valid, rename the node, or delete the subtree safely.`
-                  : 'No node selected. Create a top-level technology to start building the curriculum.'}
-              </p>
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        {selectionMessage && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            {selectionMessage}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center text-slate-600">Loading curriculum...</div>
+        ) : activeTech ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">{activeTech.name} Curriculum</h2>
             </div>
+            <CurriculumTree
+              nodes={tree}
+              techId={activeTech.id}
+              selectedId={selectedTopic?.id ?? null}
+              onSelect={handleNodeSelect}
+              onAddChild={handleAddChild}
+              onRename={handleRenameNode}
+              onDelete={handleDeleteNode}
+            />
+          </div>
+        ) : (
+          <div className="text-center text-slate-500 py-12">
+            No curriculum found. Please create a technology first.
+          </div>
+        )}
+      </main>
 
-            {statusMessage ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {statusMessage}
-              </div>
-            ) : null}
-            {error ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-
-            <form onSubmit={handleAddNode} className="space-y-4 rounded-[1.75rem] border border-brand-border bg-slate-50/70 p-5">
+      {/* Add Technology Modal */}
+      {isAddTechModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsAddTechModalOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <button
+              onClick={() => setIsAddTechModalOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 transition hover:text-slate-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="text-lg font-semibold text-slate-900">Add New Technology</h3>
+            <p className="mt-1 text-sm text-slate-500">Create a root technology to organize modules and topics.</p>
+            
+            <form onSubmit={handleAddTech} className="mt-5 space-y-4">
               <div>
-                <h3 className="text-lg font-semibold text-brand-ink">{actionLabel(selectedNode?.level ?? null)}</h3>
-                <p className="mt-1 text-sm text-brand-muted">
-                  {nextLevel
-                    ? `This will create a new ${nextLevel} under the current selection.`
-                    : 'Topics are leaf nodes, so no more children can be added here.'}
-                </p>
-              </div>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-brand-ink">Name</span>
+                <label htmlFor="techName" className="block text-sm font-medium text-slate-700">
+                  Technology Name
+                </label>
                 <input
-                  value={newNodeName}
-                  onChange={(e) => setNewNodeName(e.target.value)}
-                  placeholder={nextLevel ? `Enter ${nextLevel} name` : 'Select a different node'}
-                  disabled={!nextLevel || saving}
-                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-orange-300 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
+                  id="techName"
+                  autoFocus
+                  type="text"
+                  value={newTechName}
+                  onChange={(e) => setNewTechName(e.target.value)}
+                  placeholder="e.g. JavaScript"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-orange focus:outline-none focus:ring-1 focus:ring-brand-orange"
                 />
-              </label>
-              <button type="submit" disabled={!nextLevel || !newNodeName.trim() || saving} className="brand-button-primary w-full">
-                {saving ? 'Saving...' : actionLabel(selectedNode?.level ?? null)}
-              </button>
-            </form>
-
-            <form onSubmit={handleUpdateNode} className="space-y-4 rounded-[1.75rem] border border-brand-border bg-white p-5">
-              <div>
-                <h3 className="text-lg font-semibold text-brand-ink">Edit Node</h3>
-                <p className="mt-1 text-sm text-brand-muted">Update the selected node name. The slug will refresh automatically.</p>
               </div>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-brand-ink">Name</span>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Select a node first"
-                  disabled={!selectedNode || saving}
-                  className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-orange-300 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
-                />
-              </label>
-              <button type="submit" disabled={!selectedNode || !editName.trim() || saving} className="brand-button-secondary w-full">
-                Update Node
-              </button>
-            </form>
-
-            <div className="rounded-[1.75rem] border border-red-100 bg-red-50/60 p-5">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-brand-ink">Delete Node</h3>
-                  <p className="mt-1 text-sm text-brand-muted">
-                    Deletes the selected node and its child branch. This also removes linked note records for that subtree.
-                  </p>
-                </div>
-                <button type="button" disabled={!selectedNode || saving} onClick={handleDeleteNode} className="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
-                  Delete Node
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTechModalOpen(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newTechName.trim()}
+                  className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-orange/90 disabled:opacity-50"
+                >
+                  Create Technology
                 </button>
               </div>
-            </div>
+            </form>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
+
+      {selectedTopic && selectedTopic.type === 'topic' && (
+        <EditorDrawer
+          isOpen={isDrawerOpen}
+          node={selectedTopic}
+          noteData={noteData}
+          loading={drawerLoading}
+          error={drawerError}
+          onClose={handleCloseDrawer}
+          onSave={handleSaveVersion}
+          saving={saving}
+          saveStatus={saveStatus}
+        />
+      )}
     </div>
   )
 }

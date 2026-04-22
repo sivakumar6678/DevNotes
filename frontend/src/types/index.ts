@@ -42,6 +42,7 @@ export interface Topic {
 }
 
 export interface Technology {
+  id: number
   name: string
   slug: string
 }
@@ -53,6 +54,7 @@ export interface CurriculumNode {
   name: string
   slug: string
   parent_id: number | null
+  type?: TopicLevel
   level: TopicLevel
   created_at?: string | null
   children: CurriculumNode[]

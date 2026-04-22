@@ -40,24 +40,14 @@ export async function getNote(slug: string): Promise<NoteDetailResponse> {
   return note
 }
 
-export async function trackView(noteId: number, versionType: string): Promise<void> {
+export async function trackView(topicId: number, versionType: string): Promise<void> {
   try {
     await apiFetch('/api/track-view', {
       method: 'POST',
-      body: JSON.stringify({ note_id: noteId, version_type: versionType }),
+      body: JSON.stringify({ topic_id: topicId, version_type: versionType }),
     })
   } catch {
     // Intentionally ignore analytics failures.
   }
 }
 
-// Kept for the existing Home page until a notes listing endpoint is added.
-export function getAllNotes() {
-  return [
-    {
-      slug: 'closures',
-      title: 'Closures',
-      summary: 'Understand how functions capture state and why closures matter in modern code.',
-    },
-  ]
-}

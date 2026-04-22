@@ -112,8 +112,8 @@ export default function Topics() {
       {!loading && !error ? (
         <section className="space-y-4">
           {topics.length === 0 ? (
-            <div className="rounded-[1.75rem] border border-brand-border bg-white p-6 shadow-brand">
-              <p className="text-sm text-brand-muted">No topics are available for this technology yet.</p>
+            <div className="rounded-[1.75rem] border border-brand-border bg-white p-12 text-center shadow-brand">
+              <p className="text-lg font-medium text-brand-ink">No curriculum found. Please create a technology first.</p>
             </div>
           ) : (
             <div className="space-y-4">{renderTopics(topics)}</div>

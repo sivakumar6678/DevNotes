@@ -1,5 +1,5 @@
 from app.utils.db import db
-from app.models import Note, NoteVersion, Topic
+from app.models import NoteVersion, Topic
 from app.utils.errors import NotFoundError, ValidationError
 from app.utils.slugify import slugify
 
@@ -78,12 +78,12 @@ class NoteService:
         return topic.children.count() == 0
 
     @staticmethod
-    def _serialize_leaf_topic(topic: Topic, note: Note | None = None) -> dict:
+    def _serialize_leaf_topic(topic: Topic, note: dict | None = None) -> dict:
         topic_chain = NoteService._topic_chain(topic)
         return {
             "id": topic.id,
             "topic_id": topic.id,
-            "note_id": note.id if note else None,
+            "note_id": note.get("id") if note else None,
             "name": topic.name,
             "title": topic.name,
             "slug": topic.slug,
@@ -107,17 +107,6 @@ class NoteService:
         return topic
 
     @staticmethod
-    def get_or_create_note_for_topic(topic: Topic) -> Note:
-        note = Note.query.filter_by(topic_id=topic.id).first()
-        if note:
-            return note
-
-        note = Note(topic_id=topic.id, title=topic.name, slug=topic.slug)
-        db.session.add(note)
-        db.session.commit()
-        return note
-
-    @staticmethod
     def get_note_for_topic(topic_id: int) -> dict:
         topic = db.session.get(Topic, topic_id)
         if not topic:
@@ -126,16 +115,12 @@ class NoteService:
             raise ValidationError("Only topic-level nodes can have notes.")
 
         topic_chain = NoteService._topic_chain(topic)
-        note = Note.query.filter_by(topic_id=topic.id).first()
-        versions_map: dict[str, dict] = {}
-
-        if note:
-            versions = (
-                NoteVersion.query.filter_by(note_id=note.id)
-                .order_by(NoteVersion.version_type.asc())
-                .all()
-            )
-            versions_map = {version.version_type.value: version.content for version in versions}
+        versions = (
+            NoteVersion.query.filter_by(topic_id=topic.id)
+            .order_by(NoteVersion.version_type.asc())
+            .all()
+        )
+        versions_map = {version.version_type.value: version.content for version in versions}
 
         return {
             "topic": {
@@ -146,68 +131,64 @@ class NoteService:
                 "breadcrumb": " > ".join(item.name for item in topic_chain),
             },
             "note": {
-                "id": note.id,
-                "topic_id": note.topic_id,
-                "title": note.title,
-                "slug": note.slug,
-            } if note else None,
+                "id": topic.id,
+                "topic_id": topic.id,
+                "title": topic.name,
+                "slug": topic.slug,
+            },
             "versions": versions_map,
         }
 
     @staticmethod
     def get_all_notes() -> list[dict]:
         leaf_topics = Topic.query.filter(~Topic.children.any()).order_by(Topic.name.asc()).all()
+        if not leaf_topics:
+            return []
+
         topic_ids = [topic.id for topic in leaf_topics]
-        notes = Note.query.filter(Note.topic_id.in_(topic_ids)).all() if topic_ids else []
-        notes_by_topic_id = {note.topic_id: note for note in notes}
-        return [NoteService._serialize_leaf_topic(topic, notes_by_topic_id.get(topic.id)) for topic in leaf_topics]
+        versions = NoteVersion.query.filter(NoteVersion.topic_id.in_(topic_ids)).all()
+        versions_by_topic_id = {}
+        for version in versions:
+            versions_by_topic_id.setdefault(version.topic_id, {})[version.version_type.value] = version.content
+
+        return [
+            {
+                "id": topic.id,
+                "topic_id": topic.id,
+                "name": topic.name,
+                "title": topic.name,
+                "slug": topic.slug,
+                "parent_id": topic.parent_id,
+                "label": " > ".join(item.name for item in NoteService._topic_chain(topic)),
+                "versions": versions_by_topic_id.get(topic.id, {}),
+            }
+            for topic in leaf_topics
+        ]
 
     @staticmethod
     def get_note_with_versions(slug: str) -> dict:
-        note = Note.query.filter_by(slug=slug).first()
-        if not note:
-            topic = Topic.query.filter_by(slug=slug).first()
-            if topic and NoteService._is_leaf_topic(topic):
-                note = Note.query.filter_by(topic_id=topic.id).first()
-
-        if not note:
+        topic = Topic.query.filter_by(slug=slug).first()
+        if not topic or not NoteService._is_leaf_topic(topic):
             demo_note = DEMO_NOTES.get(slug)
             if demo_note:
                 return demo_note
             raise NotFoundError("Note not found.")
 
         versions = (
-            NoteVersion.query.filter_by(note_id=note.id)
+            NoteVersion.query.filter_by(topic_id=topic.id)
             .order_by(NoteVersion.version_type.asc())
             .all()
         )
         versions_map = {v.version_type.value: v.content for v in versions}
-        topic_chain = NoteService._topic_chain(note.topic)
-        topic_path = " / ".join(item.name for item in topic_chain[:-1]) if len(topic_chain) > 1 else note.topic.name
+        topic_chain = NoteService._topic_chain(topic)
+        topic_path = " / ".join(item.name for item in topic_chain[:-1]) if len(topic_chain) > 1 else topic.name
 
         return {
-            "id": note.id,
-            "slug": note.slug,
-            "title": note.title,
+            "id": topic.id,
+            "slug": topic.slug,
+            "title": topic.name,
             "topic": topic_path,
             "label": " > ".join(item.name for item in topic_chain),
             "versions": versions_map,
         }
 
-    @staticmethod
-    def create_note(*, title: str, topic_slug: str | None, topic_id: int | None, slug: str | None) -> dict:
-        topic = NoteService._get_leaf_topic_by_reference(topic_id=topic_id, topic_slug=topic_slug)
-
-        existing = Note.query.filter_by(topic_id=topic.id).first()
-        if existing:
-            return {"id": existing.id, "topic_id": existing.topic_id, "title": existing.title, "slug": existing.slug}
-
-        note_slug = slugify(slug or title)
-        if Note.query.filter_by(slug=note_slug).first():
-            raise ValidationError("A note with this slug already exists.", details={"slug": note_slug})
-
-        note = Note(topic_id=topic.id, title=title, slug=note_slug)
-        db.session.add(note)
-        db.session.commit()
-
-        return {"id": note.id, "topic_id": note.topic_id, "title": note.title, "slug": note.slug}

@@ -54,23 +54,29 @@ export default function Technologies() {
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
       {!loading && !error ? (
-        <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {technologies.map((technology) => (
-            <button
-              key={technology.slug}
-              type="button"
-              onClick={() => navigate(`/topics/${technology.slug}`)}
-              className="rounded-[1.75rem] border border-brand-border bg-white p-6 text-left shadow-brand transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-float"
-            >
-              <div className="h-2 w-16 rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-200" />
-              <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight text-brand-ink">{technology.name}</h2>
-              <p className="mt-3 text-sm leading-7 text-brand-muted">
-                Open the learning path for {technology.name}.
-              </p>
-              <span className="mt-5 inline-flex text-sm font-semibold text-brand-orange">View topics</span>
-            </button>
-          ))}
-        </section>
+        technologies.length === 0 ? (
+          <div className="rounded-[1.75rem] border border-brand-border bg-white p-12 text-center shadow-brand">
+            <p className="text-lg font-medium text-brand-ink">No curriculum found. Please create a technology first.</p>
+          </div>
+        ) : (
+          <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {technologies.map((technology) => (
+              <button
+                key={technology.slug}
+                type="button"
+                onClick={() => navigate(`/topics/${technology.slug}`)}
+                className="rounded-[1.75rem] border border-brand-border bg-white p-6 text-left shadow-brand transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-float"
+              >
+                <div className="h-2 w-16 rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-200" />
+                <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight text-brand-ink">{technology.name}</h2>
+                <p className="mt-3 text-sm leading-7 text-brand-muted">
+                  Open the learning path for {technology.name}.
+                </p>
+                <span className="mt-5 inline-flex text-sm font-semibold text-brand-orange">View topics</span>
+              </button>
+            ))}
+          </section>
+        )
       ) : null}
     </div>
   )

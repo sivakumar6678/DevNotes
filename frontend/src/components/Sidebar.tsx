@@ -1,26 +1,15 @@
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { docsNavigation } from '../data/docsData'
-
-interface NavItem {
-  slug: string;
-  title?: string;
-  name?: string;
-  children?: NavItem[];
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, Link } from 'react-router-dom'
+import { fetchCurriculum } from '../api/curriculum'
+import type { CurriculumNode } from '../types'
 
 const indentClasses = ['pl-3', 'pl-6', 'pl-8', 'pl-10']
 
-function getLabel(item: NavItem): string {
-  return item.title || item.name || ''
+function getLabel(item: CurriculumNode): string {
+  return item.name || ''
 }
 
-function hasActiveDescendant(item: NavItem, activeSlug: string): boolean {
+function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
   if (!item.children) {
     return false
   }
@@ -33,10 +22,48 @@ function hasActiveDescendant(item: NavItem, activeSlug: string): boolean {
 export default function Sidebar() {
   const location = useLocation()
   const activeSlug = location.pathname.split('/').pop() || ''
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    docsNavigation.reduce((acc, section: NavSection) => ({ ...acc, [section.title]: true }), {}),
-  )
+  
+  const [tree, setTree] = useState<CurriculumNode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTree() {
+      try {
+        setLoading(true)
+        setError('')
+        const data = await fetchCurriculum()
+        console.log('Curriculum fetched for Sidebar:', data)
+        if (!cancelled) {
+          setTree(data)
+          
+          // Open all root sections by default
+          const initialSections = data.reduce((acc, section) => ({ ...acc, [section.name]: true }), {})
+          setOpenSections(initialSections)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load curriculum.')
+          console.error(err)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadTree()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function toggleSection(sectionTitle: string) {
     setOpenSections((current) => ({
@@ -52,15 +79,18 @@ export default function Sidebar() {
     }))
   }
 
-  function renderItem(item: NavItem, depth = 0) {
+  function renderItem(item: CurriculumNode, depth = 0) {
     const hasChildren = Array.isArray(item.children) && item.children.length > 0
+    // Topic nodes without children are leaf nodes (notes)
+    const isNote = !hasChildren || item.type === 'topic'
+    
     const isOpen = openItems[item.slug]
     const label = getLabel(item)
     const active = item.slug === activeSlug || hasActiveDescendant(item, activeSlug)
     const padding = indentClasses[Math.min(depth, indentClasses.length - 1)]
 
     return (
-      <li key={item.slug}>
+      <li key={item.slug || item.id}>
         <div
           className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-sm transition ${padding} ${
             active
@@ -68,13 +98,17 @@ export default function Sidebar() {
               : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-brand-ink'
           }`}
         >
-          <NavLink
-            to={`/notes/${item.slug}`}
-            className="flex-1 text-left"
-            aria-current={active ? 'page' : undefined}
-          >
-            {label}
-          </NavLink>
+          {isNote && item.slug ? (
+            <NavLink
+              to={`/notes/${item.slug}`}
+              className="flex-1 text-left"
+              aria-current={active ? 'page' : undefined}
+            >
+              {label}
+            </NavLink>
+          ) : (
+            <span className="flex-1 text-left cursor-default">{label}</span>
+          )}
 
           {hasChildren ? (
             <button
@@ -99,25 +133,44 @@ export default function Sidebar() {
   }
 
   function renderNavigation() {
+    if (loading) {
+      return <div className="text-center text-sm text-brand-muted py-8">Loading...</div>
+    }
+
+    if (error) {
+      return <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg">{error}</div>
+    }
+
+    if (tree.length === 0) {
+      return (
+        <div className="p-4 text-center">
+          <p className="text-sm font-medium text-brand-ink">No curriculum found. Please create a technology first.</p>
+          <Link to="/curriculum" className="mt-3 inline-block text-xs text-brand-orange font-semibold">
+            Go to Curriculum Builder
+          </Link>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-3">
-        {docsNavigation.map((section: NavSection) => {
-          const isOpen = openSections[section.title]
+        {tree.map((section: CurriculumNode) => {
+          const isOpen = openSections[section.name]
 
           return (
-            <section key={section.title} className="rounded-[1.5rem] border border-brand-border bg-white p-2">
+            <section key={section.slug || section.id} className="rounded-[1.5rem] border border-brand-border bg-white p-2">
               <button
                 type="button"
-                onClick={() => toggleSection(section.title)}
+                onClick={() => toggleSection(section.name)}
                 className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left"
               >
-                <span className="text-sm font-semibold text-brand-ink">{section.title}</span>
+                <span className="text-sm font-semibold text-brand-ink">{section.name}</span>
                 <span className="text-xs uppercase tracking-[0.24em] text-brand-muted">{isOpen ? 'Hide' : 'Show'}</span>
               </button>
 
-              {isOpen ? (
+              {isOpen && section.children && section.children.length > 0 ? (
                 <ul className="mt-2 space-y-2">
-                  {section.items.map((item) => renderItem(item))}
+                  {section.children.map((item) => renderItem(item))}
                 </ul>
               ) : null}
             </section>

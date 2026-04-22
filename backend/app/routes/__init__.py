@@ -3,7 +3,7 @@ from flask import Blueprint
 from .health_routes import health
 from .analytics_routes import track_view
 from .technologies_routes import list_technologies
-from .notes_routes import create_note, get_all_notes, get_note_by_slug, get_note_by_topic
+from .notes_routes import get_all_notes, get_note_by_slug, get_note_by_topic
 from .topics_routes import (
     create_topic,
     delete_topic,
@@ -35,7 +35,6 @@ api_bp.add_url_rule("/topics/<int:topic_id>/note", view_func=get_note_by_topic, 
 api_bp.add_url_rule("/topics/<int:topic_id>/note-version", view_func=create_note_version_for_topic, methods=["POST"])
 api_bp.add_url_rule("/notes/<string:slug>", view_func=get_note_by_slug, methods=["GET"])
 api_bp.add_url_rule("/notes", view_func=get_all_notes, methods=["GET"])
-api_bp.add_url_rule("/notes", view_func=create_note, methods=["POST"])
 api_bp.add_url_rule("/note-version", view_func=upsert_note_version, methods=["POST"])
 api_bp.add_url_rule("/auth/signup", view_func=signup, methods=["POST"])
 api_bp.add_url_rule("/auth/login", view_func=login, methods=["POST"])
