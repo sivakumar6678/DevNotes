@@ -2,13 +2,14 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required
 
 from app.services.version_service import VersionService
-from app.utils.auth import require_admin_user
+from app.utils.auth import require_admin_user, get_current_user
 from app.utils.errors import ValidationError
 
 
 @jwt_required()
 def upsert_note_version():
     require_admin_user()
+    user = get_current_user()
     payload = request.get_json(silent=True) or {}
 
     topic_id = payload.get("topic_id")
@@ -23,10 +24,10 @@ def upsert_note_version():
         raise ValidationError("`content` is required.")
 
     version = VersionService.upsert_version(
-        note_id=None,
         topic_id=topic_id,
         version_type=version_type,
         content=content,
+        user_id=user.id,
     )
     return jsonify({"note_version": version}), 201
 
@@ -34,6 +35,7 @@ def upsert_note_version():
 @jwt_required()
 def create_note_version_for_topic(topic_id: int):
     require_admin_user()
+    user = get_current_user()
     payload = request.get_json(silent=True) or {}
 
     version_type = payload.get("version_type")
@@ -45,9 +47,9 @@ def create_note_version_for_topic(topic_id: int):
         raise ValidationError("`content` is required.")
 
     version = VersionService.upsert_version(
-        note_id=None,
         topic_id=topic_id,
         version_type=version_type,
         content=content,
+        user_id=user.id,
     )
     return jsonify({"note_version": version}), 201

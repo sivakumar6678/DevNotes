@@ -19,8 +19,8 @@ class NoteVersion(db.Model):
     __tablename__ = "note_versions"
 
     id = db.Column(db.Integer, primary_key=True)
-    topic_id = db.Column(
-        db.Integer, db.ForeignKey("topics.id", ondelete="CASCADE"), nullable=False, index=True
+    note_id = db.Column(
+        db.Integer, db.ForeignKey("notes.id", ondelete="CASCADE"), nullable=False, index=True
     )
     version_type = db.Column(
         db.Enum(VersionType, name="version_type_enum", create_type=False), nullable=False, index=True
@@ -35,10 +35,10 @@ class NoteVersion(db.Model):
         db.DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    topic = db.relationship(
-        "Topic", backref=db.backref("versions", lazy="dynamic", cascade="all, delete-orphan")
+    note = db.relationship(
+        "Note", backref=db.backref("versions", lazy="dynamic", cascade="all, delete-orphan")
     )
     author = db.relationship("User", foreign_keys=[created_by])
     editor = db.relationship("User", foreign_keys=[updated_by])
 
-    __table_args__ = (UniqueConstraint("topic_id", "version_type", name="uq_note_version_type"),)
+    __table_args__ = (UniqueConstraint("note_id", "version_type", name="uq_note_version_type"),)

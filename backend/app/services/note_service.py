@@ -1,5 +1,5 @@
 from app.utils.db import db
-from app.models import NoteVersion, Topic
+from app.models import Note, NoteVersion, Topic
 from app.utils.errors import NotFoundError, ValidationError
 from app.utils.slugify import slugify
 
@@ -114,9 +114,24 @@ class NoteService:
         if not NoteService._is_leaf_topic(topic):
             raise ValidationError("Only topic-level nodes can have notes.")
 
-        topic_chain = NoteService._topic_chain(topic)
+        note = Note.query.filter_by(topic_id=topic.id).first()
+        if not note:
+            # Fallback for old data or if note wasn't created yet
+            return {
+                "topic": {
+                    "id": topic.id,
+                    "name": topic.name,
+                    "slug": topic.slug,
+                    "node_type": topic.node_type,
+                    "technology_id": topic.technology_id,
+                    "breadcrumb": " > ".join(item.name for item in NoteService._topic_chain(topic)),
+                },
+                "note": None,
+                "versions": {},
+            }
+
         versions = (
-            NoteVersion.query.filter_by(topic_id=topic.id)
+            NoteVersion.query.filter_by(note_id=note.id)
             .order_by(NoteVersion.version_type.asc())
             .all()
         )
@@ -129,54 +144,63 @@ class NoteService:
                 "slug": topic.slug,
                 "node_type": topic.node_type,
                 "technology_id": topic.technology_id,
-                "breadcrumb": " > ".join(item.name for item in topic_chain),
+                "breadcrumb": " > ".join(item.name for item in NoteService._topic_chain(topic)),
             },
             "note": {
-                "id": topic.id,
+                "id": note.id,
                 "topic_id": topic.id,
-                "title": topic.name,
-                "slug": topic.slug,
+                "title": note.title,
+                "slug": note.slug,
             },
             "versions": versions_map,
         }
 
     @staticmethod
     def get_all_notes() -> list[dict]:
-        leaf_topics = Topic.query.filter(~Topic.children.any()).order_by(Topic.name.asc()).all()
-        if not leaf_topics:
+        notes = Note.query.all()
+        if not notes:
             return []
 
-        topic_ids = [topic.id for topic in leaf_topics]
-        versions = NoteVersion.query.filter(NoteVersion.topic_id.in_(topic_ids)).all()
-        versions_by_topic_id = {}
+        note_ids = [n.id for n in notes]
+        versions = NoteVersion.query.filter(NoteVersion.note_id.in_(note_ids)).all()
+        versions_by_note_id = {}
         for version in versions:
-            versions_by_topic_id.setdefault(version.topic_id, {})[version.version_type.value] = version.content
+            versions_by_note_id.setdefault(version.note_id, {})[version.version_type.value] = version.content
 
-        return [
-            {
-                "id": topic.id,
+        results = []
+        for note in notes:
+            topic = db.session.get(Topic, note.topic_id)
+            if not topic:
+                continue
+            
+            results.append({
+                "id": note.id,
                 "topic_id": topic.id,
                 "name": topic.name,
-                "title": topic.name,
-                "slug": topic.slug,
+                "title": note.title,
+                "slug": note.slug,
                 "parent_id": topic.parent_id,
                 "label": " > ".join(item.name for item in NoteService._topic_chain(topic)),
-                "versions": versions_by_topic_id.get(topic.id, {}),
-            }
-            for topic in leaf_topics
-        ]
+                "versions": versions_by_note_id.get(note.id, {}),
+            })
+        
+        return results
 
     @staticmethod
     def get_note_with_versions(slug: str) -> dict:
-        topic = Topic.query.filter_by(slug=slug).first()
-        if not topic or not NoteService._is_leaf_topic(topic):
+        note = Note.query.filter_by(slug=slug).first()
+        if not note:
             demo_note = DEMO_NOTES.get(slug)
             if demo_note:
                 return demo_note
             raise NotFoundError("Note not found.")
 
+        topic = db.session.get(Topic, note.topic_id)
+        if not topic:
+            raise NotFoundError("Associated topic not found.")
+
         versions = (
-            NoteVersion.query.filter_by(topic_id=topic.id)
+            NoteVersion.query.filter_by(note_id=note.id)
             .order_by(NoteVersion.version_type.asc())
             .all()
         )
@@ -185,11 +209,40 @@ class NoteService:
         topic_path = " / ".join(item.name for item in topic_chain[:-1]) if len(topic_chain) > 1 else topic.name
 
         return {
-            "id": topic.id,
-            "slug": topic.slug,
-            "title": topic.name,
+            "id": note.id,
+            "slug": note.slug,
+            "title": note.title,
             "topic": topic_path,
             "label": " > ".join(item.name for item in topic_chain),
             "versions": versions_map,
         }
+
+    @staticmethod
+    def ensure_note_schema() -> None:
+        """Add missing tracking columns to the notes table (incremental migration)."""
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        if "notes" not in inspector.get_table_names():
+            return
+
+        columns = {col["name"] for col in inspector.get_columns("notes")}
+        migrations = []
+
+        if "created_by" not in columns:
+            migrations.append("ALTER TABLE notes ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        if "updated_by" not in columns:
+            migrations.append("ALTER TABLE notes ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        if "created_at" not in columns:
+            migrations.append("ALTER TABLE notes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
+        if "updated_at" not in columns:
+            migrations.append("ALTER TABLE notes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
+
+        if migrations:
+            with db.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                for sql in migrations:
+                    try:
+                        conn.execute(text(sql))
+                    except Exception as e:
+                        print(f"[notes] Migration error: {e}")
+            print(f"[notes] Applied {len(migrations)} schema migration(s).")
 

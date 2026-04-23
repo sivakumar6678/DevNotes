@@ -286,11 +286,18 @@ class TopicService:
 
     @staticmethod
     def delete_topic(topic_id: int) -> dict:
+        from app.models import Note
         topic = TopicService._get_topic(topic_id)
         topic_ids = TopicService._collect_descendant_ids(topic)
 
-        # note_versions and analytics_events cascade via FK; explicit delete for safety
-        NoteVersion.query.filter(NoteVersion.topic_id.in_(topic_ids)).delete(synchronize_session=False)
+        # note_versions link to notes, which link to topics
+        notes = Note.query.filter(Note.topic_id.in_(topic_ids)).all()
+        note_ids = [n.id for n in notes]
+
+        if note_ids:
+            NoteVersion.query.filter(NoteVersion.note_id.in_(note_ids)).delete(synchronize_session=False)
+            Note.query.filter(Note.id.in_(note_ids)).delete(synchronize_session=False)
+        
         Topic.query.filter(Topic.id.in_(topic_ids)).delete(synchronize_session=False)
         db.session.commit()
 
