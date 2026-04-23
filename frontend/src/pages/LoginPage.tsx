@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { apiLogin } from '../api/auth'
+import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -14,8 +16,9 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const response = await login(email, password)
-      navigate(response.user.role === 'admin' ? '/admin' : '/')
+      const response = await apiLogin(email, password)
+      login(response.token, response.user)
+      navigate(response.user.role === 'super_admin' ? '/admin' : '/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to login. Please try again.')
     } finally {

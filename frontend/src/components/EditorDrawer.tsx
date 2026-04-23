@@ -13,10 +13,10 @@ interface EditorDrawerProps {
   saveStatus: string
 }
 
-const versionOptions = ['simple', 'industry', 'interview', 'professional']
+const VERSION_OPTIONS = ['simple', 'industry', 'interview', 'revision', 'realtime', 'theory']
 
-function getNodeType(node: CurriculumNode) {
-  return node.type ?? node.level
+function getNodeLabel(node: CurriculumNode) {
+  return node.node_type ?? node.type ?? 'subtopic'
 }
 
 export default function EditorDrawer({
@@ -30,7 +30,7 @@ export default function EditorDrawer({
   saving,
   saveStatus,
 }: EditorDrawerProps) {
-  const nodeType = getNodeType(node)
+  const nodeLabel = getNodeLabel(node)
   const [versionType, setVersionType] = useState('industry')
   const [contentInput, setContentInput] = useState('')
   const [localError, setLocalError] = useState('')
@@ -87,7 +87,7 @@ export default function EditorDrawer({
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Editor</p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-950">{node.name}</h2>
               <p className="mt-1 text-sm text-slate-600">
-                {nodeType === 'topic' ? 'Edit note content for this topic.' : 'Only topic leaves can store content.'}
+                {nodeLabel === 'subtopic' ? 'Add or edit note content for this subtopic.' : 'Only subtopic nodes can store content.'}
               </p>
             </div>
             <button
@@ -125,7 +125,7 @@ export default function EditorDrawer({
                   onChange={(event) => setVersionType(event.target.value)}
                   className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
                 >
-                  {versionOptions.map((version) => (
+                  {VERSION_OPTIONS.map((version) => (
                     <option key={version} value={version}>
                       {version}
                     </option>

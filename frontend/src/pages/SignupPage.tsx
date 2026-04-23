@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { signup } from '../api/auth'
+import { apiSignup } from '../api/auth'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -16,7 +16,7 @@ export default function SignupPage() {
     setError('')
     setSuccessMessage('')
     try {
-      const response = await signup(name, email, password)
+      const response = await apiSignup(name, email, password)
       setSuccessMessage(response.message || 'Account created. Awaiting approval.')
       setName('')
       setEmail('')

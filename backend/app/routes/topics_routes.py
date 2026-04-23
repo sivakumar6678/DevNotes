@@ -61,6 +61,9 @@ def create_topic():
     slug = payload.get("slug")
     technology_id = payload.get("technology_id")
     parent_id = payload.get("parent_id")
+    node_type = payload.get("node_type", "topic")
+    sort_order = payload.get("sort_order", 0)
+    description = payload.get("description")
 
     if not name or not slug or not technology_id:
         return jsonify({"message": "Missing required fields: name, slug, technology_id are required"}), 422
@@ -70,6 +73,9 @@ def create_topic():
         slug=slug,
         technology_id=technology_id,
         parent_id=parent_id,
+        node_type=node_type,
+        sort_order=sort_order,
+        description=description,
     )
     return jsonify({"topic": topic}), 201
 
@@ -84,6 +90,8 @@ def update_topic(topic_id: int):
         name=payload.get("name"),
         parent_id=payload.get("parent_id"),
         parent_id_provided="parent_id" in payload,
+        is_published=payload.get("is_published"),
+        sort_order=payload.get("sort_order"),
     )
     return jsonify({"topic": topic}), 200
 

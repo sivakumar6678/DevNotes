@@ -1,22 +1,30 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { getCurrentUser, getToken } from '../api/auth'
+import { useAuth } from '../context/AuthContext'
 
 interface ProtectedRouteProps {
   children: ReactNode
   requireAdmin?: boolean
+  requireContributor?: boolean
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const token = getToken()
-  const user = getCurrentUser()
+export default function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireContributor = false,
+}: ProtectedRouteProps) {
+  const { isAuthenticated, isAdmin, isContributor } = useAuth()
   const location = useLocation()
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (requireAdmin && user?.role !== 'admin') {
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireContributor && !isContributor) {
     return <Navigate to="/" replace />
   }
 

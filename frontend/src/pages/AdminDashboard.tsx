@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createNoteVersion, getAllNotes, getCurrentUser, getToken, logout } from '../api/auth'
+import { createNoteVersion, getAllNotes } from '../api/auth'
+import { useAuth } from '../context/AuthContext'
 import type { NoteOption } from '../types'
 import UserManagement from './UserManagement'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const currentUser = getCurrentUser()
+  const { isAdmin, logout } = useAuth()
   const [notes, setNotes] = useState<NoteOption[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState('')
   const [versionType, setVersionType] = useState('industry')
@@ -17,12 +18,12 @@ export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<'notes' | 'users'>('notes')
 
   useEffect(() => {
-    if (!getToken() || currentUser?.role !== 'admin') {
+    if (!isAdmin) {
       navigate('/login')
       return
     }
     loadNotes()
-  }, [currentUser?.role, navigate])
+  }, [isAdmin, navigate])
 
   async function loadNotes() {
     try {
@@ -141,9 +142,11 @@ export default function AdminDashboard() {
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
                     >
                       <option value="simple">Simple</option>
-                      <option value="professional">Professional</option>
                       <option value="industry">Industry</option>
                       <option value="interview">Interview</option>
+                      <option value="revision">Revision</option>
+                      <option value="realtime">Realtime</option>
+                      <option value="theory">Theory</option>
                     </select>
                   </label>
                 </div>

@@ -2,8 +2,9 @@ export interface User {
   id: number
   name: string
   email: string
-  role: string
-  status: string
+  role: 'super_admin' | 'contributor' | 'public'
+  status: 'pending' | 'approved' | 'suspended'
+  avatar_url?: string | null
   created_at?: string
 }
 
@@ -37,7 +38,7 @@ export interface Topic {
   slug: string
   technology_id?: number
   parent_id?: number | null
-  type?: 'module' | 'topic'
+  type?: 'technology' | 'module' | 'topic'
   created_at?: string | null
   children?: Topic[]
 }
@@ -46,9 +47,13 @@ export interface Technology {
   id: number
   name: string
   slug: string
+  description?: string | null
+  icon_url?: string | null
+  color?: string | null
+  is_published: boolean
+  sort_order: number
+  created_by?: number | null
 }
-
-// Removed TopicType enum
 
 export interface CurriculumNode {
   id: number
@@ -56,7 +61,11 @@ export interface CurriculumNode {
   slug: string
   technology_id: number
   parent_id: number | null
-  type: 'module' | 'topic'
+  node_type: 'section' | 'topic' | 'subtopic'
+  /** Legacy alias — same as node_type */
+  type?: string
+  is_published: boolean
+  sort_order: number
   created_at?: string | null
   children: CurriculumNode[]
 }
@@ -66,6 +75,9 @@ export interface TopicPayload {
   slug: string
   technology_id: number
   parent_id: number | null
+  node_type?: 'section' | 'topic' | 'subtopic'
+  sort_order?: number
+  description?: string
 }
 
 export interface TopicNoteSummary {
@@ -81,7 +93,7 @@ export interface TopicNoteData {
     name: string
     slug: string
     technology_id: number
-    type: 'module' | 'topic'
+    type: 'technology' | 'module' | 'topic'
     breadcrumb: string
   }
   note: TopicNoteSummary | null

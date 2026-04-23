@@ -2,23 +2,30 @@ import type { LoginResponse, NotesResponse, SignupResponse, User, UsersResponse 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const TOKEN_KEY = 'token'
-const USER_KEY = 'auth_user'
 
-async function apiFetch(path: string, options: RequestInit = {}) {
+// ─── Raw localStorage helpers (used only by AuthContext init) ───────────────
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+// ─── Shared fetch utility ────────────────────────────────────────────────────
+export async function apiFetch<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`
   const token = getToken()
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
+      ...(options.headers || {}),
     },
     ...options,
   })
 
   const contentType = response.headers.get('content-type') || ''
   const isJson = contentType.includes('application/json')
-  const data = isJson ? await response.json().catch(() => null) : await response.text().catch(() => null)
+  const data = isJson
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => null)
 
   if (!response.ok) {
     const message = (data && data.error && data.error.message) || 'Request failed'
@@ -31,51 +38,30 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   return data
 }
 
-export async function signup(name: string, email: string, password: string) {
+// ─── Auth API calls ──────────────────────────────────────────────────────────
+export async function apiLogin(email: string, password: string): Promise<LoginResponse> {
+  return (await apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })) as LoginResponse
+}
+
+export async function apiSignup(
+  name: string,
+  email: string,
+  password: string,
+): Promise<SignupResponse> {
   return (await apiFetch('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   })) as SignupResponse
 }
 
-export async function login(email: string, password: string) {
-  const response = (await apiFetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })) as LoginResponse
-  const { token, user } = response
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token)
-  }
-  if (user) {
-    localStorage.setItem(USER_KEY, JSON.stringify(user))
-  }
-  return response
+export async function apiGetProfile(): Promise<{ user: User }> {
+  return (await apiFetch('/api/auth/protected')) as { user: User }
 }
 
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function getCurrentUser(): User | null {
-  const raw = localStorage.getItem(USER_KEY)
-  if (!raw) {
-    return null
-  }
-
-  try {
-    return JSON.parse(raw) as User
-  } catch {
-    localStorage.removeItem(USER_KEY)
-    return null
-  }
-}
-
-export function logout() {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
-}
-
+// ─── Note APIs ───────────────────────────────────────────────────────────────
 export async function createNoteVersion(topicId: number, versionType: string, content: object) {
   return await apiFetch('/api/note-version', {
     method: 'POST',
@@ -87,6 +73,7 @@ export async function getAllNotes() {
   return (await apiFetch('/api/notes')) as NotesResponse
 }
 
+// ─── User management APIs ────────────────────────────────────────────────────
 export async function getUsers() {
   return (await apiFetch('/api/users')) as UsersResponse
 }
@@ -97,10 +84,24 @@ export async function approveUser(userId: number) {
   })) as { message: string; user: User }
 }
 
-export async function getProfile() {
-  const response = (await apiFetch('/api/auth/protected')) as { user: User }
-  if (response.user) {
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user))
+// ─── Legacy shims — kept for components not yet migrated to useAuth() ────────
+/** @deprecated Use useAuth().login() instead */
+export function login(email: string, password: string) {
+  return apiLogin(email, password)
+}
+
+/** @deprecated Use useAuth().logout() instead */
+export function logout() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem('auth_user')
+}
+
+/** @deprecated Use useAuth().user instead */
+export function getCurrentUser(): User | null {
+  try {
+    const raw = localStorage.getItem('auth_user')
+    return raw ? (JSON.parse(raw) as User) : null
+  } catch {
+    return null
   }
-  return response
 }

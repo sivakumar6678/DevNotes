@@ -18,7 +18,16 @@ def get_current_user() -> User:
 
 
 def require_admin_user() -> User:
+    """Require super_admin role."""
     user = get_current_user()
-    if user.role != "admin":
+    if user.role != "super_admin":
         raise AuthorizationError("Admin access required.")
+    return user
+
+
+def require_contributor_or_admin() -> User:
+    """Allow contributor or super_admin."""
+    user = get_current_user()
+    if user.role not in ("super_admin", "contributor"):
+        raise AuthorizationError("Contributor access required.")
     return user

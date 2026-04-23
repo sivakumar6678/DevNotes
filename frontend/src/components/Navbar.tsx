@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
-import { getCurrentUser, logout } from '../api/auth'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -10,12 +10,13 @@ const navItems = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const user = getCurrentUser()
-  const isAuthenticated = Boolean(user)
+  const { user, isAuthenticated, isAdmin, logout } = useAuth()
+  const navigate = useNavigate()
 
   function handleLogout() {
     logout()
     setMenuOpen(false)
+    navigate('/', { replace: true })
   }
 
   return (
@@ -55,12 +56,15 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
             <>
-              <Link to="/admin" className="brand-button-secondary">
-                Dashboard
-              </Link>
-              <Link to="/" onClick={handleLogout} className="brand-button-primary">
+              {isAdmin && (
+                <Link to="/admin" className="brand-button-secondary">
+                  Dashboard
+                </Link>
+              )}
+              <span className="text-sm text-brand-muted hidden lg:block">{user?.name}</span>
+              <button type="button" onClick={handleLogout} className="brand-button-primary">
                 Logout
-              </Link>
+              </button>
             </>
           ) : (
             <>
@@ -106,12 +110,14 @@ export default function Navbar() {
             ))}
             {isAuthenticated ? (
               <>
-                <Link to="/admin" onClick={() => setMenuOpen(false)} className="brand-button-secondary mt-2">
-                  Dashboard
-                </Link>
-                <Link to="/" onClick={handleLogout} className="brand-button-primary">
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setMenuOpen(false)} className="brand-button-secondary mt-2">
+                    Dashboard
+                  </Link>
+                )}
+                <button type="button" onClick={handleLogout} className="brand-button-primary">
                   Logout
-                </Link>
+                </button>
               </>
             ) : (
               <>

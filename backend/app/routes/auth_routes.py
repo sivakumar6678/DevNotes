@@ -33,7 +33,7 @@ def login():
         raise ValidationError("`email` and `password` are required.")
 
     user = AuthService.login(email=email, password=password)
-    token = create_access_token(identity=user["id"])
+    token = create_access_token(identity=str(user["id"]))
     print(f"[auth] login success for: {user['email']} (id={user['id']})")
     return jsonify({"user": user, "token": token}), 200
 

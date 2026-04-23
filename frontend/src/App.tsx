@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/Layout'
 import About from './pages/About'
+import AdminDashboard from './pages/AdminDashboard'
 import Categories from './pages/Categories'
 import Home from './pages/Home'
 import NotePage from './pages/NotePage'
@@ -31,6 +32,14 @@ const router = createBrowserRouter(
           element: (
             <ProtectedRoute requireAdmin>
               <CurriculumPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: 'admin/dashboard',
+          element: (
+            <ProtectedRoute requireAdmin>
+              <AdminDashboard />
             </ProtectedRoute>
           ),
         },

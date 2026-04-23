@@ -127,7 +127,8 @@ class NoteService:
                 "id": topic.id,
                 "name": topic.name,
                 "slug": topic.slug,
-                "level": getattr(topic.level, "value", topic.level),
+                "node_type": topic.node_type,
+                "technology_id": topic.technology_id,
                 "breadcrumb": " > ".join(item.name for item in topic_chain),
             },
             "note": {

@@ -6,7 +6,9 @@ from .config import get_config
 from .extensions import migrate
 from .routes import api_bp
 from .services.auth_service import AuthService
+from .services.technology_service import TechnologyService
 from .services.topic_service import TopicService
+from .services.version_service import VersionService
 from .utils.errors import APIError
 from .utils.db import db
 
@@ -25,7 +27,9 @@ def create_app() -> Flask:
     with app.app_context():
         AuthService.ensure_user_schema()
         AuthService.ensure_admin_account()
+        TechnologyService.ensure_technology_schema()
         TopicService.ensure_topic_schema()
+        VersionService.ensure_note_version_schema()
 
     @app.errorhandler(APIError)
     def handle_api_error(err: APIError):

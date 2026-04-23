@@ -1,207 +1,193 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useLocation, Link } from 'react-router-dom'
-import { fetchCurriculum } from '../api/curriculum'
-import type { CurriculumNode } from '../types'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
+import { fetchCurriculum, fetchTechnologies } from '../api/curriculum'
+import type { CurriculumNode, Technology } from '../types'
 
-const indentClasses = ['pl-3', 'pl-6', 'pl-8', 'pl-10']
-
-function getLabel(item: CurriculumNode): string {
-  return item.name || ''
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
+  return item.children?.some(
+    (child) => child.slug === activeSlug || hasActiveDescendant(child, activeSlug),
+  ) ?? false
 }
 
-function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
-  if (!item.children) {
-    return false
-  }
+// ─── Tree Item ────────────────────────────────────────────────────────────────
+function TreeItem({
+  node,
+  depth,
+  activeSlug,
+}: {
+  node: CurriculumNode
+  depth: number
+  activeSlug: string
+}) {
+  const isLeaf = node.node_type === 'subtopic' && node.children.length === 0
+  const isActive = node.slug === activeSlug
+  const hasDescendantActive = !isActive && hasActiveDescendant(node, activeSlug)
+  const [open, setOpen] = useState(isActive || hasDescendantActive)
+  const hasChildren = node.children.length > 0
 
-  return item.children.some(
-    (child) => child.slug === activeSlug || hasActiveDescendant(child, activeSlug),
+  const pl = ['pl-0', 'pl-4', 'pl-7'][Math.min(depth, 2)]
+
+  return (
+    <li>
+      <div
+        className={`group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors ${pl} ${
+          isActive
+            ? 'bg-brand-orangeSoft font-semibold text-brand-orange'
+            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+      >
+        {/* Leaf: link. Branch: expand toggle + name */}
+        {isLeaf ? (
+          <NavLink
+            to={`/notes/${node.slug}`}
+            className="flex-1 truncate"
+            aria-current={isActive ? 'page' : undefined}
+          >
+            {node.name}
+          </NavLink>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              className="flex flex-1 items-center gap-1.5 truncate text-left"
+            >
+              {open ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              )}
+              <span className={`truncate ${depth === 0 ? 'font-semibold text-slate-800' : ''}`}>
+                {node.name}
+              </span>
+            </button>
+          </>
+        )}
+      </div>
+
+      {hasChildren && open && (
+        <ul className="ml-2 mt-0.5 space-y-0.5 border-l border-slate-100 pl-2">
+          {node.children.map((child) => (
+            <TreeItem key={child.id} node={child} depth={depth + 1} activeSlug={activeSlug} />
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
+// ─── Main Sidebar ─────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const location = useLocation()
   const activeSlug = location.pathname.split('/').pop() || ''
-  
+
+  const [technologies, setTechnologies] = useState<Technology[]>([])
+  const [activeTechId, setActiveTechId] = useState<number | null>(null)
   const [tree, setTree] = useState<CurriculumNode[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
-  const [openItems, setOpenItems] = useState<Record<string, boolean>>({})
-
+  // Load technology list once
   useEffect(() => {
-    let cancelled = false
-
-    async function loadTree() {
-      try {
-        setLoading(true)
-        setError('')
-        const data = await fetchCurriculum()
-        console.log('Curriculum fetched for Sidebar:', data)
-        if (!cancelled) {
-          setTree(data)
-          
-          // Open all root sections by default
-          const initialSections = data.reduce((acc, section) => ({ ...acc, [section.name]: true }), {})
-          setOpenSections(initialSections)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load curriculum.')
-          console.error(err)
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadTree()
-
-    return () => {
-      cancelled = true
-    }
+    fetchTechnologies()
+      .then((techs) => {
+        const published = techs.filter((t) => t.is_published)
+        setTechnologies(published)
+        if (published.length > 0) setActiveTechId(published[0].id)
+      })
+      .catch(() => setError('Could not load topics.'))
   }, [])
 
-  function toggleSection(sectionTitle: string) {
-    setOpenSections((current) => ({
-      ...current,
-      [sectionTitle]: !current[sectionTitle],
-    }))
-  }
+  // Load tree when active tech changes
+  useEffect(() => {
+    if (!activeTechId) return
+    setLoading(true)
+    setError('')
+    fetchCurriculum(activeTechId)
+      .then((nodes) => {
+        setTree(nodes)
+      })
+      .catch(() => setError('Could not load curriculum.'))
+      .finally(() => setLoading(false))
+  }, [activeTechId])
 
-  function toggleItem(slug: string) {
-    setOpenItems((current) => ({
-      ...current,
-      [slug]: !current[slug],
-    }))
-  }
-
-  function renderItem(item: CurriculumNode, depth = 0) {
-    const hasChildren = Array.isArray(item.children) && item.children.length > 0
-    // Topic nodes without children are leaf nodes (notes)
-    const isNote = !hasChildren || item.type === 'topic'
-    
-    const isOpen = openItems[item.slug]
-    const label = getLabel(item)
-    const active = item.slug === activeSlug || hasActiveDescendant(item, activeSlug)
-    const padding = indentClasses[Math.min(depth, indentClasses.length - 1)]
-
-    return (
-      <li key={item.slug || item.id}>
-        <div
-          className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-sm transition ${padding} ${
-            active
-              ? 'border-sky-100 bg-sky-50 text-brand-ink shadow-sm'
-              : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-brand-ink'
-          }`}
-        >
-          {isNote && item.slug ? (
-            <NavLink
-              to={`/notes/${item.slug}`}
-              className="flex-1 text-left"
-              aria-current={active ? 'page' : undefined}
-            >
-              {label}
-            </NavLink>
-          ) : (
-            <span className="flex-1 text-left cursor-default">{label}</span>
-          )}
-
-          {hasChildren ? (
+  const nav = (
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Technology selector */}
+      {technologies.length > 1 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {technologies.map((tech) => (
             <button
+              key={tech.id}
               type="button"
-              onClick={() => toggleItem(item.slug)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-brand-muted transition hover:border-slate-200 hover:text-brand-ink"
-              aria-expanded={isOpen ? 'true' : 'false'}
-              aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${label}`}
+              onClick={() => setActiveTechId(tech.id)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                tech.id === activeTechId
+                  ? 'bg-brand-orange text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
             >
-              <span className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}>▸</span>
+              {tech.name}
             </button>
-          ) : null}
+          ))}
         </div>
+      )}
 
-        {hasChildren && isOpen ? (
-          <ul className="mt-2 space-y-1">
-            {item.children!.map((child) => renderItem(child, depth + 1))}
+      {/* Tree */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="space-y-2 pt-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-7 animate-pulse rounded-lg bg-slate-100"
+                style={{ width: i % 2 === 0 ? '75%' : '90%' }}
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <p className="text-xs text-red-500">{error}</p>
+        ) : tree.length === 0 ? (
+          <div className="py-6 text-center">
+            <p className="text-sm text-slate-500">No topics published yet.</p>
+            <Link
+              to="/curriculum"
+              className="mt-2 block text-xs font-semibold text-brand-orange hover:underline"
+            >
+              Go to Curriculum Builder →
+            </Link>
+          </div>
+        ) : (
+          <ul className="space-y-0.5">
+            {tree.map((node) => (
+              <TreeItem key={node.id} node={node} depth={0} activeSlug={activeSlug} />
+            ))}
           </ul>
-        ) : null}
-      </li>
-    )
-  }
-
-  function renderNavigation() {
-    if (loading) {
-      return <div className="text-center text-sm text-brand-muted py-8">Loading...</div>
-    }
-
-    if (error) {
-      return <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg">{error}</div>
-    }
-
-    if (tree.length === 0) {
-      return (
-        <div className="p-4 text-center">
-          <p className="text-sm font-medium text-brand-ink">No curriculum found. Please create a technology first.</p>
-          <Link to="/curriculum" className="mt-3 inline-block text-xs text-brand-orange font-semibold">
-            Go to Curriculum Builder
-          </Link>
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-3">
-        {tree.map((section: CurriculumNode) => {
-          const isOpen = openSections[section.name]
-
-          return (
-            <section key={section.slug || section.id} className="rounded-[1.5rem] border border-brand-border bg-white p-2">
-              <button
-                type="button"
-                onClick={() => toggleSection(section.name)}
-                className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left"
-              >
-                <span className="text-sm font-semibold text-brand-ink">{section.name}</span>
-                <span className="text-xs uppercase tracking-[0.24em] text-brand-muted">{isOpen ? 'Hide' : 'Show'}</span>
-              </button>
-
-              {isOpen && section.children && section.children.length > 0 ? (
-                <ul className="mt-2 space-y-2">
-                  {section.children.map((item) => renderItem(item))}
-                </ul>
-              ) : null}
-            </section>
-          )
-        })}
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <>
-      <details className="brand-panel mb-6 overflow-hidden lg:hidden">
-        <summary className="cursor-pointer list-none px-4 py-4">
-          <div>
-            <p className="brand-label">Knowledge Base</p>
-            <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-brand-ink">Browse notes</h2>
-          </div>
+      {/* Mobile collapsible */}
+      <details className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
+          <span className="text-sm font-semibold text-slate-800">Browse Topics</span>
+          <ChevronDown className="h-4 w-4 text-slate-400" />
         </summary>
-        <div className="border-t border-brand-border px-4 py-4">
-          {renderNavigation()}
-        </div>
+        <div className="border-t border-slate-100 px-4 py-3">{nav}</div>
       </details>
 
-      <aside className="hidden min-w-[300px] w-[300px] flex-shrink-0 lg:block">
-        <div className="sticky top-36 rounded-[1.75rem] border border-brand-border bg-white px-4 py-4 shadow-brand">
-          <div className="mb-4">
-            <p className="brand-label">Knowledge Base</p>
-            <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-brand-ink">Browse notes</h2>
-          </div>
-
-          {renderNavigation()}
+      {/* Desktop sticky sidebar */}
+      <aside className="hidden w-[260px] shrink-0 lg:block">
+        <div className="sticky top-36 max-h-[calc(100vh-10rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            Knowledge Base
+          </p>
+          {nav}
         </div>
       </aside>
     </>
