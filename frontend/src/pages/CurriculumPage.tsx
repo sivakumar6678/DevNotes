@@ -119,6 +119,7 @@ export default function CurriculumPage() {
   // Tree
   const [tree, setTree] = useState<CurriculumNode[]>([])
   const [treeLoading, setTreeLoading] = useState(false)
+  const [isCreatingTopic, setIsCreatingTopic] = useState(false)
 
   // Selection + drawer
   const [selectedNode, setSelectedNode] = useState<CurriculumNode | null>(null)
@@ -240,6 +241,8 @@ export default function CurriculumPage() {
   // ─── Node CRUD ─────────────────────────────────────────────────────────────
   async function handleAddChild(parentId: number | null, name: string, nodeType: NodeType) {
     if (!activeTechId) return
+    setIsCreatingTopic(true)
+    setError('')
     try {
       await createTopic({
         name,
@@ -252,6 +255,8 @@ export default function CurriculumPage() {
       await loadTree(activeTechId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add node.')
+    } finally {
+      setIsCreatingTopic(false)
     }
   }
 
@@ -518,6 +523,7 @@ export default function CurriculumPage() {
                     onRename={isAdmin ? handleRename : undefined}
                     onDelete={isAdmin ? handleDelete : undefined}
                     onTogglePublish={isAdmin ? handleTogglePublishNode : undefined}
+                    isSaving={isCreatingTopic}
                   />
                 )}
               </div>

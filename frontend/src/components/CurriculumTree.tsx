@@ -13,6 +13,7 @@ interface CurriculumTreeProps {
   onRename?: (nodeId: number, newName: string) => Promise<void> | void
   onDelete?: (nodeId: number) => Promise<void> | void
   onTogglePublish?: (nodeId: number, current: boolean) => Promise<void> | void
+  isSaving?: boolean
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ export default function CurriculumTree({
   onRename,
   onDelete,
   onTogglePublish,
+  isSaving = false,
 }: CurriculumTreeProps) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [addingToNodeId, setAddingToNodeId] = useState<number | 'root' | null>(null)
@@ -160,11 +162,21 @@ export default function CurriculumTree({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, action, node)}
-          onBlur={() => { setAddingToNodeId(null); setRenamingNodeId(null); setInputValue('') }}
+          onBlur={() => { if (!isSaving) { setAddingToNodeId(null); setRenamingNodeId(null); setInputValue('') } }}
           placeholder={action === 'add' ? `New ${meta.label} name…` : `Rename "${node?.name}"…`}
-          className="h-7 flex-1 rounded-lg border border-orange-300 bg-white px-3 text-sm text-slate-900 shadow-sm ring-2 ring-orange-100 placeholder:text-slate-400 focus:outline-none"
+          disabled={isSaving}
+          className={`h-7 flex-1 rounded-lg border border-orange-300 bg-white px-3 text-sm text-slate-900 shadow-sm ring-2 ring-orange-100 placeholder:text-slate-400 focus:outline-none ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
         />
-        <span className="shrink-0 text-[11px] text-slate-400">↵ save · esc cancel</span>
+        <span className="shrink-0 text-[11px] text-slate-400">
+          {isSaving ? (
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-brand-orange" />
+              Saving...
+            </span>
+          ) : (
+            '↵ save · esc cancel'
+          )}
+        </span>
       </div>
     )
   }
@@ -343,11 +355,21 @@ export default function CurriculumTree({
           {onAddChild && (
             <button
               type="button"
+              disabled={isSaving}
               onClick={() => triggerAddChild('root', 'section')}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600"
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" />
-              Add Section
+              {isSaving ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Add Section
+                </>
+              )}
             </button>
           )}
         </div>
@@ -365,11 +387,21 @@ export default function CurriculumTree({
           {onAddChild && addingToNodeId !== 'root' && (
             <button
               type="button"
+              disabled={isSaving}
               onClick={() => triggerAddChild('root', 'section')}
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add Section
+              {isSaving ? (
+                <>
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Section
+                </>
+              )}
             </button>
           )}
         </>

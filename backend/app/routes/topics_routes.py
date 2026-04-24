@@ -44,7 +44,7 @@ def list_topics_by_technology(technology_id: int):
 
 def get_children(parent_id: int):
     parent = TopicService._get_topic(parent_id)
-    children = [TopicService._serialize_tree_node(child) for child in parent.children.order_by(Topic.name.asc()).all()]
+    children = [TopicService._serialize_tree_node(child) for child in parent.children.order_by(Topic.created_at.asc()).all()]
     return jsonify(children)
 
 
