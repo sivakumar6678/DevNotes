@@ -16,7 +16,7 @@ class TopicService:
         technologies = Technology.query.order_by(Technology.name.asc()).all()
         result = []
         for tech in technologies:
-            modules = Topic.query.filter_by(technology_id=tech.id, parent_id=None).order_by(Topic.created_at.asc()).all()
+            modules = Topic.query.filter_by(technology_id=tech.id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
             tech_node = {
                 "id": tech.id,
                 "name": tech.name,
@@ -101,7 +101,7 @@ class TopicService:
 
     @staticmethod
     def _serialize_tree_node(topic: Topic) -> dict:
-        children = topic.children.order_by(Topic.created_at.asc()).all()
+        children = topic.children.order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
         return {
             "id": topic.id,
             "name": topic.name,
@@ -141,7 +141,7 @@ class TopicService:
         if filter_parent:
             query = query.filter_by(parent_id=parent_id)
         
-        topics = query.order_by(Topic.created_at.asc()).all()
+        topics = query.order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
         return [TopicService._serialize_flat_topic(topic) for topic in topics]
 
     @staticmethod
@@ -155,7 +155,7 @@ class TopicService:
 
     @staticmethod
     def list_topics_by_technology(technology_id: int) -> list[dict]:
-        modules = Topic.query.filter_by(technology_id=technology_id, parent_id=None).order_by(Topic.created_at.asc()).all()
+        modules = Topic.query.filter_by(technology_id=technology_id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
         return [TopicService._serialize_tree_node(child) for child in modules]
 
     @staticmethod
