@@ -12,6 +12,9 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import CurriculumPage from './pages/CurriculumPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminLayout from './components/AdminLayout'
+import ManageUsers from './pages/ManageUsers'
+import { Navigate } from 'react-router-dom'
 
 const router = createBrowserRouter(
   [
@@ -31,25 +34,19 @@ const router = createBrowserRouter(
           path: 'admin',
           element: (
             <ProtectedRoute requireAdmin>
-              <CurriculumPage />
+              <AdminLayout />
             </ProtectedRoute>
           ),
-        },
-        {
-          path: 'admin/dashboard',
-          element: (
-            <ProtectedRoute requireAdmin>
-              <AdminDashboard />
-            </ProtectedRoute>
-          ),
+          children: [
+            { index: true, element: <Navigate to="curriculum" replace /> },
+            { path: 'curriculum', element: <CurriculumPage /> },
+            { path: 'dashboard', element: <AdminDashboard /> },
+            { path: 'users', element: <ManageUsers /> },
+          ]
         },
         {
           path: 'curriculum',
-          element: (
-            <ProtectedRoute requireAdmin>
-              <CurriculumPage />
-            </ProtectedRoute>
-          ),
+          element: <Navigate to="/admin/curriculum" replace />
         },
         { path: '*', element: <NotFound /> },
       ],

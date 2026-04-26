@@ -11,6 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import Loader from '../components/Loader'
 import {
   createTechnology,
   createTopic,
@@ -587,13 +588,23 @@ export default function CurriculumPage() {
                   disabled={!newTechName.trim() || techModalSaving}
                   className="rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
                 >
-                  {techModalSaving ? 'Creating…' : 'Create'}
+                  {techModalSaving ? (
+                    <span className="flex items-center gap-2">
+                      <Loader size="sm" className="[&>div]:!border-white/30 [&>div]:!border-t-white" />
+                      Creating…
+                    </span>
+                  ) : (
+                    'Create'
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* ── Full Page Loader ── */}
+      {(treeLoading || techsLoading) && <Loader fullScreen />}
 
       {/* ── Editor Drawer ── */}
       {selectedNode && selectedNode.node_type === 'subtopic' && (

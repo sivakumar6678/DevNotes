@@ -75,12 +75,18 @@ export async function getAllNotes() {
 
 // ─── User management APIs ────────────────────────────────────────────────────
 export async function getUsers() {
-  return (await apiFetch('/api/users')) as UsersResponse
+  return (await apiFetch('/api/admin/users')) as UsersResponse
 }
 
 export async function approveUser(userId: number) {
-  return (await apiFetch(`/api/users/approve/${userId}`, {
-    method: 'POST',
+  return (await apiFetch(`/api/admin/users/${userId}/approve`, {
+    method: 'PUT',
+  })) as { message: string; user: User }
+}
+
+export async function rejectUser(userId: number) {
+  return (await apiFetch(`/api/admin/users/${userId}/reject`, {
+    method: 'PUT',
   })) as { message: string; user: User }
 }
 

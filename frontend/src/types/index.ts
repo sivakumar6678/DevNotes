@@ -3,7 +3,7 @@ export interface User {
   name: string
   email: string
   role: 'super_admin' | 'contributor' | 'public'
-  status: 'pending' | 'approved' | 'suspended'
+  status: 'pending' | 'approved' | 'suspended' | 'rejected'
   avatar_url?: string | null
   created_at?: string
 }

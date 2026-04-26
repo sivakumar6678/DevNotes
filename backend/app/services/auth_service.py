@@ -138,6 +138,13 @@ class AuthService:
         return AuthService.serialize_user(user)
 
     @staticmethod
+    def reject_user(user_id: int) -> dict:
+        user = AuthService.get_user_by_id(user_id)
+        user.status = "rejected"
+        db.session.commit()
+        return AuthService.serialize_user(user)
+
+    @staticmethod
     def set_role(user_id: int, role: str) -> dict:
         if role not in VALID_ROLES:
             raise ValidationError(f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { CurriculumNode } from '../types'
+import Loader from './Loader'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type NodeType = 'section' | 'topic' | 'subtopic'
@@ -169,8 +170,8 @@ export default function CurriculumTree({
         />
         <span className="shrink-0 text-[11px] text-slate-400">
           {isSaving ? (
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-brand-orange" />
+            <span className="flex items-center gap-1.5 text-brand-orange">
+              <Loader size="sm" className="!text-brand-orange" />
               Saving...
             </span>
           ) : (
@@ -361,7 +362,7 @@ export default function CurriculumTree({
             >
               {isSaving ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  <Loader size="sm" className="[&>div]:!border-white/30 [&>div]:!border-t-white" />
                   Saving...
                 </>
               ) : (
@@ -393,7 +394,7 @@ export default function CurriculumTree({
             >
               {isSaving ? (
                 <>
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
+                  <Loader size="sm" className="[&>div]:!border-slate-300 [&>div]:!border-t-slate-500" />
                   Saving...
                 </>
               ) : (

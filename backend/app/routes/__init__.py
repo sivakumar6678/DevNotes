@@ -17,7 +17,7 @@ from .topics_routes import (
 )
 from .versions_routes import create_note_version_for_topic, upsert_note_version
 from .auth_routes import login, signup, protected
-from .users_routes import list_users, approve_user
+from .users_routes import list_users, approve_user, reject_user
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -55,8 +55,9 @@ api_bp.add_url_rule("/auth/login", view_func=login, methods=["POST"])
 api_bp.add_url_rule("/auth/protected", view_func=protected, methods=["GET"])
 
 # Users
-api_bp.add_url_rule("/users", view_func=list_users, methods=["GET"])
-api_bp.add_url_rule("/users/approve/<int:user_id>", view_func=approve_user, methods=["POST"])
+api_bp.add_url_rule("/admin/users", view_func=list_users, methods=["GET"])
+api_bp.add_url_rule("/admin/users/<int:user_id>/approve", view_func=approve_user, methods=["PUT"])
+api_bp.add_url_rule("/admin/users/<int:user_id>/reject", view_func=reject_user, methods=["PUT"])
 
 # Analytics
 api_bp.add_url_rule("/track-view", view_func=track_view, methods=["POST"])
