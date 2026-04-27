@@ -27,6 +27,20 @@ export default {
         brand: '0 18px 40px rgba(15, 23, 42, 0.08)',
         float: '0 24px 60px rgba(15, 23, 42, 0.12)',
       },
+      keyframes: {
+        'bar-bounce': {
+          '0%, 100%': { transform: 'scaleY(0.4)', opacity: '0.3' },
+          '50%': { transform: 'scaleY(1)', opacity: '1' },
+        },
+        'progress-loop': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        }
+      },
+      animation: {
+        'bar-bounce': 'bar-bounce 1s ease-in-out infinite',
+        'progress-loop': 'progress-loop 1.2s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import Loader from '../components/Loader'
+import { InlineLoader, PrimaryLoader } from '../components/Loader'
 import {
   createTechnology,
   createTopic,
@@ -590,7 +590,7 @@ export default function CurriculumPage() {
                 >
                   {techModalSaving ? (
                     <span className="flex items-center gap-2">
-                      <Loader size="sm" className="[&>div]:!border-white/30 [&>div]:!border-t-white" />
+                      <InlineLoader />
                       Creating…
                     </span>
                   ) : (
@@ -604,7 +604,7 @@ export default function CurriculumPage() {
       )}
 
       {/* ── Full Page Loader ── */}
-      {(treeLoading || techsLoading) && <Loader fullScreen />}
+      {(treeLoading || techsLoading) && <PrimaryLoader fullScreen />}
 
       {/* ── Editor Drawer ── */}
       {selectedNode && selectedNode.node_type === 'subtopic' && (

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { CheckCircle2, XCircle, ShieldAlert, Users } from 'lucide-react'
 import { getUsers, approveUser, rejectUser } from '../api/auth'
 import type { User } from '../types'
-import Loader from '../components/Loader'
+import { PrimaryLoader } from '../components/Loader'
 
 export default function ManageUsers() {
   const [users, setUsers] = useState<User[]>([])
@@ -52,8 +52,8 @@ export default function ManageUsers() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader size="xl" />
+      <div className="flex h-[400px] items-center justify-center">
+        <PrimaryLoader />
       </div>
     )
   }
