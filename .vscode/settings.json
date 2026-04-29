@@ -5,5 +5,9 @@
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  "tailwindCSS.experimental.configFile": "frontend/tailwind.config.js"
+  "tailwindCSS.experimental.configFile": "frontend/tailwind.config.js",
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/myvenv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend"
+  ]
 }

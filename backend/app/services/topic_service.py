@@ -159,6 +159,13 @@ class TopicService:
         return [TopicService._serialize_tree_node(child) for child in modules]
 
     @staticmethod
+    def list_topics_by_technology_slug(tech_slug: str) -> list[dict]:
+        tech = Technology.query.filter_by(slug=tech_slug).first()
+        if not tech:
+            raise NotFoundError(f"Technology with slug '{tech_slug}' not found.")
+        return TopicService.list_topics_by_technology(tech.id)
+
+    @staticmethod
     def _validate_parent_for_technology(parent: Topic | None, technology_id: int) -> None:
         if parent is not None:
             if parent.technology_id != technology_id:

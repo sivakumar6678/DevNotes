@@ -13,6 +13,7 @@ from .topics_routes import (
     list_leaf_topics,
     list_topics,
     list_topics_by_technology,
+    list_topics_by_technology_slug,
     update_topic,
 )
 from .versions_routes import create_note_version_for_topic, upsert_note_version
@@ -37,6 +38,7 @@ api_bp.add_url_rule("/topics/tree", view_func=get_topics_tree, methods=["GET"])
 api_bp.add_url_rule("/topics", view_func=list_topics, methods=["GET"])
 api_bp.add_url_rule("/topics", view_func=create_topic, methods=["POST"])
 api_bp.add_url_rule("/topics/leaf", view_func=list_leaf_topics, methods=["GET"])
+api_bp.add_url_rule("/topics/<string:tech_slug>", view_func=list_topics_by_technology_slug, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>", view_func=update_topic, methods=["PUT"])
 api_bp.add_url_rule("/topics/<int:topic_id>", view_func=delete_topic, methods=["DELETE"])
 api_bp.add_url_rule("/topics/<int:parent_id>/children", view_func=get_children, methods=["GET"])
