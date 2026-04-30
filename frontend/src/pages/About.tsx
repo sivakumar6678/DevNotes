@@ -23,7 +23,7 @@ const sections = [
 
 export default function About() {
   return (
-    <div className="space-y-10">
+    <div className="mx-auto max-w-5xl space-y-10 px-4 lg:px-6">
       <section className="brand-panel p-8">
         <p className="brand-label">About VelStack</p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold tracking-tight text-brand-ink sm:text-5xl">

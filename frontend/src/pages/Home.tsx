@@ -63,9 +63,6 @@ export default function Home() {
               <Link to="/technologies" className="brand-button-primary">
                 Start Learning
               </Link>
-              <Link to="/categories" className="brand-button-secondary">
-                Browse Categories
-              </Link>
             </div>
           </div>
 

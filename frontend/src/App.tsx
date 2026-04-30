@@ -2,7 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/Layout'
 import About from './pages/About'
 import AdminDashboard from './pages/AdminDashboard'
-import Categories from './pages/Categories'
+
 import Home from './pages/Home'
 import NotePage from './pages/NotePage'
 import NotFound from './pages/NotFound'
@@ -24,7 +24,7 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Home /> },
         { path: 'about', element: <About /> },
-        { path: 'categories', element: <Categories /> },
+
         { path: 'technologies', element: <Technologies /> },
         { path: 'topics/:tech_slug', element: <Topics /> },
         { path: 'notes/:slug', element: <NotePage /> },
