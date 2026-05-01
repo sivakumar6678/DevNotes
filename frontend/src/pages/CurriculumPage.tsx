@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { InlineLoader, PrimaryLoader } from '../components/Loader'
+import { InlineLoader, PrimaryLoader, SavingLoader } from '../components/Loader'
 import {
   createTechnology,
   createTopic,
@@ -387,10 +387,8 @@ export default function CurriculumPage() {
           </p>
 
           {techsLoading ? (
-            <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-9 animate-pulse rounded-xl bg-slate-200" />
-              ))}
+            <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/70">
+              <InlineLoader label="Loading technologies" />
             </div>
           ) : technologies.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 px-3 py-6 text-center">
@@ -510,11 +508,7 @@ export default function CurriculumPage() {
               {/* Tree panel */}
               <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 {treeLoading ? (
-                  <div className="space-y-2 pt-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-9 animate-pulse rounded-xl bg-slate-100" style={{ marginLeft: i > 1 ? 24 : 0 }} />
-                    ))}
-                  </div>
+                  <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
                 ) : (
                   <CurriculumTree
                     nodes={tree}
@@ -586,26 +580,16 @@ export default function CurriculumPage() {
                 <button
                   type="submit"
                   disabled={!newTechName.trim() || techModalSaving}
-                  className="rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
                 >
-                  {techModalSaving ? (
-                    <span className="flex items-center gap-2">
-                      <InlineLoader />
-                      Creating…
-                    </span>
-                  ) : (
-                    'Create'
-                  )}
+                  {techModalSaving ? <SavingLoader className="bg-orange-200/50" label="Creating technology" /> : null}
+                  Create
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* ── Full Page Loader ── */}
-      {(treeLoading || techsLoading) && <PrimaryLoader fullScreen />}
-
       {/* ── Editor Drawer ── */}
       {selectedNode && selectedNode.node_type === 'subtopic' && (
         <EditorDrawer

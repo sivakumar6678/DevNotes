@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiLogin } from '../api/auth'
+import { SavingLoader } from '../components/Loader'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -116,7 +117,8 @@ export default function LoginPage() {
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-brand-orange px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? <SavingLoader className="mr-2 bg-orange-200/50" label="Logging in" /> : null}
+                Login
               </button>
             </form>
 

@@ -23,13 +23,13 @@ export interface NoteVersion {
   detailed_explanation?: string
   core_concepts?: Array<{ name?: string; explanation?: string }>
   how_it_works?: string
-  syntax?: string
-  code_example?: string
-  practical_example?: string
-  real_world_example?: string
+  syntax?: string | Array<{ title?: string; language?: string; code?: string }>
+  code_example?: string | Array<{ title?: string; language?: string; code?: string }>
+  practical_example?: string | Array<{ title?: string; description?: string; code?: string; explanation?: string; language?: string }>
+  real_world_example?: string | Array<{ title?: string; description?: string }>
   common_mistakes?: string[]
   best_practices?: string[]
-  interview_notes?: string[]
+  interview_notes?: string[] | Array<{ question?: string; answer?: string }>
 }
 
 export interface Topic {

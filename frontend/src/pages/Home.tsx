@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getTechnologies } from '../api/api'
+import { PrimaryLoader } from '../components/Loader'
 import type { Technology } from '../types'
 
 const ACCENT_COLORS = ['bg-orange-500', 'bg-amber-400', 'bg-slate-900', 'bg-orange-300']
@@ -107,7 +108,7 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <div className="text-center text-sm text-brand-muted py-12">Loading technologies...</div>
+          <PrimaryLoader className="min-h-[220px]" label="Loading technologies" />
         ) : error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTechnologies } from '../api/api'
+import { PrimaryLoader } from '../components/Loader'
 import type { Technology } from '../types'
 
 export default function Technologies() {
@@ -50,7 +51,7 @@ export default function Technologies() {
         </p>
       </section>
 
-      {loading ? <p className="text-sm text-brand-muted">Loading technologies...</p> : null}
+      {loading ? <PrimaryLoader className="min-h-[220px]" label="Loading technologies" /> : null}
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
       {!loading && !error ? (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { approveUser, getUsers } from '../api/auth'
+import { PrimaryLoader, SavingLoader } from '../components/Loader'
 import type { User } from '../types'
 
 export default function UserManagement() {
@@ -66,7 +67,7 @@ export default function UserManagement() {
           </div>
 
           {loading ? (
-            <div className="px-6 py-8 text-sm text-slate-600">Loading users...</div>
+            <PrimaryLoader className="min-h-[220px] px-6" label="Loading users" />
           ) : users.length === 0 ? (
             <div className="px-6 py-8 text-sm text-slate-600">No users found.</div>
           ) : (
@@ -89,9 +90,10 @@ export default function UserManagement() {
                       type="button"
                       onClick={() => handleApprove(user.id)}
                       disabled={approvingId === user.id}
-                      className="inline-flex rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
-                      {approvingId === user.id ? 'Approving...' : 'Approve'}
+                      {approvingId === user.id ? <SavingLoader className="w-10 bg-blue-400/30" label="Approving user" /> : null}
+                      Approve
                     </button>
                   )}
                 </span>

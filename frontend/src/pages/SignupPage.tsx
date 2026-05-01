@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiSignup } from '../api/auth'
+import { SavingLoader } from '../components/Loader'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -103,7 +104,8 @@ export default function SignupPage() {
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-brand-orange px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Signing up...' : 'Create Account'}
+                {loading ? <SavingLoader className="mr-2 bg-orange-200/50" label="Creating account" /> : null}
+                Create Account
               </button>
             </form>
 

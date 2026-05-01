@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createNoteVersion, getAllNotes } from '../api/auth'
+import { SavingLoader } from '../components/Loader'
 import { useAuth } from '../context/AuthContext'
 import type { NoteOption } from '../types'
 import UserManagement from './UserManagement'
@@ -169,9 +170,10 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center justify-center rounded-3xl bg-blue-600 px-6 py-3 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-3xl bg-blue-600 px-6 py-3 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? 'Submitting...' : 'Save Version'}
+                  {loading ? <SavingLoader className="bg-blue-400/30" label="Saving note version" /> : null}
+                  Save Version
                 </button>
               </form>
             </>

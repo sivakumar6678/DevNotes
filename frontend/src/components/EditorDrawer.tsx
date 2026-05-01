@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PrimaryLoader, SavingLoader } from './Loader'
 import type { CurriculumNode, TopicNoteData } from '../types'
 
 interface EditorDrawerProps {
@@ -133,24 +134,29 @@ export default function EditorDrawer({
                 </select>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <label className="block text-sm font-semibold text-slate-700">JSON content</label>
-                <textarea
-                  value={contentInput}
-                  onChange={(event) => setContentInput(event.target.value)}
-                  rows={18}
-                  placeholder='{"definition":"...","examples":[]}'
-                  className="block w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-sm leading-6 text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
-                />
+              {loading ? (
+                <PrimaryLoader className="min-h-[280px]" label="Loading note content" />
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <label className="block text-sm font-semibold text-slate-700">JSON content</label>
+                  <textarea
+                    value={contentInput}
+                    onChange={(event) => setContentInput(event.target.value)}
+                    rows={18}
+                    placeholder='{"definition":"...","examples":[]}'
+                    className="block w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-sm leading-6 text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
+                  />
 
-                <button
-                  type="submit"
-                  disabled={saving || loading}
-                  className="inline-flex w-full items-center justify-center rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving || loading ? 'Saving...' : 'Save content'}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {saving ? <SavingLoader className="bg-slate-700" label="Saving note content" /> : null}
+                    Save content
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

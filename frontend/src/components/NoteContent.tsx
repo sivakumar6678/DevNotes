@@ -1,80 +1,96 @@
-export const noteSections = [
-  { key: 'definition', title: 'Definition', id: 'definition' },
-  { key: 'problem_it_solves', title: 'Problem It Solves', id: 'problem-it-solves' },
-  { key: 'detailed_explanation', title: 'Detailed Explanation', id: 'detailed-explanation' },
-  { key: 'core_concepts', title: 'Core Concepts', id: 'core-concepts' },
-  { key: 'how_it_works', title: 'How It Works', id: 'how-it-works' },
-  { key: 'syntax', title: 'Syntax', id: 'syntax', isCode: true },
-  { key: 'code_example', title: 'Code Example', id: 'code-example', isCode: true },
-  { key: 'practical_example', title: 'Practical Example', id: 'practical-example' },
-  { key: 'real_world_example', title: 'Real World Example', id: 'real-world-example' },
-  { key: 'common_mistakes', title: 'Common Mistakes', id: 'common-mistakes' },
-  { key: 'best_practices', title: 'Best Practices', id: 'best-practices' },
-  { key: 'interview_notes', title: 'Interview Notes', id: 'interview-notes' },
-]
-
-function isNonEmptyString(value: any): value is string {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
-function isNonEmptyArray(value: any): value is any[] {
-  return Array.isArray(value) && value.length > 0
-}
+import {
+  CodeBlock,
+  ConceptBlock,
+  ExampleBlock,
+  ListBlock,
+  SectionBlock,
+  TextBlock,
+} from './note-blocks'
+import {
+  hasRenderableContent,
+  noteSections,
+  normalizeCodeItems,
+  normalizeConcepts,
+  normalizeExamples,
+  normalizeStringList,
+  normalizeTextValue,
+} from './noteContentSchema'
 
 export default function NoteContent({ version = {} }: { version?: Record<string, any> }) {
+  const sections = noteSections.filter((section) => hasRenderableContent(section.key, version[section.key]))
+
+  if (!sections.length) {
+    return (
+      <article className="mx-auto w-full max-w-4xl min-w-0">
+        <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-slate-500">No structured content is available for this version yet.</p>
+        </div>
+      </article>
+    )
+  }
+
   return (
-    <article className="max-w-4xl">
-      {noteSections.map((section) => {
+    <article className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6">
+      {sections.map((section) => {
         const value = version[section.key]
-        if (value == null) {
-          return null
-        }
+        switch (section.kind) {
+          case 'text': {
+            const paragraphs = normalizeTextValue(value)
+            if (!paragraphs.length) return null
 
-        if (section.key === 'core_concepts') {
-          if (!isNonEmptyArray(value)) return null
-          return (
-            <section key={section.key} id={section.id} className="scroll-mt-32 border-b border-slate-200 py-4 last:border-b-0">
-              <h2 className="font-display text-lg font-semibold text-brand-ink">{section.title}</h2>
-              <ul className="mt-4 space-y-3 pl-5 text-base leading-7 text-slate-700">
-                {value
-                  .filter((item) => item && (isNonEmptyString(item.name) || isNonEmptyString(item.explanation)))
-                  .map((item, idx) => (
-                    <li key={`${item.name || 'concept'}:${idx}`}>
-                      {isNonEmptyString(item.name) ? <strong className="text-brand-ink">{item.name}:</strong> : null}{' '}
-                      {isNonEmptyString(item.explanation) ? item.explanation : ''}
-                    </li>
+            return (
+              <SectionBlock key={section.key} id={section.id} title={section.title}>
+                <TextBlock paragraphs={paragraphs} />
+              </SectionBlock>
+            )
+          }
+          case 'code': {
+            const codeItems = normalizeCodeItems(value)
+            if (!codeItems.length) return null
+
+            return (
+              <SectionBlock key={section.key} id={section.id} title={section.title}>
+                <div className="space-y-4">
+                  {codeItems.map((item, index) => (
+                    <CodeBlock key={`${section.key}-${index}`} item={item} />
                   ))}
-              </ul>
-            </section>
-          )
-        }
+                </div>
+              </SectionBlock>
+            )
+          }
+          case 'concept': {
+            const concepts = normalizeConcepts(value)
+            if (!concepts.length) return null
 
-        if (['common_mistakes', 'best_practices', 'interview_notes'].includes(section.key)) {
-          if (!isNonEmptyArray(value)) return null
-          return (
-            <section key={section.key} id={section.id} className="scroll-mt-32 border-b border-slate-200 py-4 last:border-b-0">
-              <h2 className="font-display text-lg font-semibold text-brand-ink">{section.title}</h2>
-              <ul className="mt-4 space-y-3 pl-5 text-base leading-7 text-slate-700">
-                {value.filter((item) => isNonEmptyString(item)).map((item, idx) => (
-                  <li key={`${section.key}:${idx}`}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          )
-        }
+            return (
+              <SectionBlock key={section.key} id={section.id} title={section.title}>
+                <ConceptBlock items={concepts} />
+              </SectionBlock>
+            )
+          }
+          case 'list': {
+            const items = normalizeStringList(value)
+            if (!items.length) return null
 
-        return (
-          <section key={section.key} id={section.id} className="scroll-mt-32 border-b border-slate-200 py-4 last:border-b-0">
-            <h2 className="font-display text-lg font-semibold text-brand-ink">{section.title}</h2>
-            {section.isCode ? (
-              <pre className="mt-4 overflow-x-auto rounded bg-gray-900 p-4 text-sm text-white">
-                <code>{isNonEmptyString(value) ? value : ''}</code>
-              </pre>
-            ) : (
-              <p className="mt-4 text-base leading-8 text-slate-700">{isNonEmptyString(value) ? value : String(value)}</p>
-            )}
-          </section>
-        )
+            return (
+              <SectionBlock key={section.key} id={section.id} title={section.title}>
+                <ListBlock items={items} />
+              </SectionBlock>
+            )
+          }
+          case 'example': {
+            const examples = normalizeExamples(value)
+            if (!examples.length) return null
+
+            return (
+              <SectionBlock key={section.key} id={section.id} title={section.title}>
+                <ExampleBlock items={examples} />
+              </SectionBlock>
+            )
+          }
+          default:
+            return null
+        }
       })}
     </article>
   )

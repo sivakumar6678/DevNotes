@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { CurriculumNode } from '../types'
-import { InlineLoader, SavingLoader } from './Loader'
+import { SavingLoader } from './Loader'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type NodeType = 'section' | 'topic' | 'subtopic'
@@ -170,10 +170,7 @@ export default function CurriculumTree({
         />
         <span className="shrink-0 text-[11px] text-slate-400">
           {isSaving ? (
-            <span className="flex items-center gap-1.5 text-brand-orange">
-              <SavingLoader className="w-12" />
-              Saving...
-            </span>
+            <SavingLoader className="w-12" label="Saving curriculum changes" />
           ) : (
             '↵ save · esc cancel'
           )}
@@ -360,17 +357,8 @@ export default function CurriculumTree({
               onClick={() => triggerAddChild('root', 'section')}
               className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
             >
-              {isSaving ? (
-                <>
-                  <InlineLoader />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" />
-                  Add Section
-                </>
-              )}
+              {isSaving ? <SavingLoader className="bg-orange-200/50" label="Saving new section" /> : <Plus className="h-4 w-4" />}
+              Add Section
             </button>
           )}
         </div>
@@ -392,17 +380,8 @@ export default function CurriculumTree({
               onClick={() => triggerAddChild('root', 'section')}
               className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
             >
-              {isSaving ? (
-                <>
-                  <InlineLoader />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3.5 w-3.5" />
-                  Add Section
-                </>
-              )}
+              {isSaving ? <SavingLoader className="bg-slate-200" label="Saving new section" /> : <Plus className="h-3.5 w-3.5" />}
+              Add Section
             </button>
           )}
         </>

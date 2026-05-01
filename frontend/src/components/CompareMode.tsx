@@ -27,7 +27,7 @@ export default function CompareMode({
   onChangeRight,
 }: CompareModeProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       {[{ version: leftVersion, onChange: onChangeLeft }, { version: rightVersion, onChange: onChangeRight }].map(
         ({ version, onChange }, i) => (
           <div key={i} className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -50,7 +50,7 @@ export default function CompareMode({
             </div>
 
             {/* Content */}
-            <div className="px-5 py-5">
+            <div className="px-4 py-5 sm:px-5">
               <NoteContent version={versions[version] ?? {}} />
             </div>
           </div>

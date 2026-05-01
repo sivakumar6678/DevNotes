@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createNoteVersion, getAllNotes, getToken } from '../api/auth'
+import { SavingLoader } from '../components/Loader'
 import type { NoteOption } from '../types'
 
 export default function AdminPage() {
@@ -105,9 +106,10 @@ export default function AdminPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? 'Submitting...' : 'Submit'}
+          {loading ? <SavingLoader className="bg-blue-400/30" label="Submitting note version" /> : null}
+          Submit
         </button>
       </form>
     </div>

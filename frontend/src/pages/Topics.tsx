@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTopics } from '../api/api'
+import { PrimaryLoader } from '../components/Loader'
 import type { Topic } from '../types'
 
 // ─── Layout tokens ────────────────────────────────────────────────────────────
@@ -46,16 +47,18 @@ function estimateHours(leafCount: number) {
 
 function LeafList({ topics, navigate }: { topics: Topic[]; navigate: ReturnType<typeof useNavigate> }) {
   return (
-    <ul className="flex flex-col gap-1.5" role="list">
+    <ul className="flex flex-col gap-1" role="list">
       {topics.map((leaf) => (
-        <li key={leaf.slug} className="group/leaf flex items-start gap-2">
-          <span className="mt-[0.25em] shrink-0 text-[11px] text-brand-border transition-colors group-hover/leaf:text-brand-orange" aria-hidden="true">→</span>
+        <li key={leaf.slug}>
           <button
             type="button"
             onClick={() => navigate(`/notes/${leaf.slug}`)}
-            className="text-left text-[0.84rem] leading-relaxed text-brand-muted transition-all group-hover/leaf:translate-x-0.5 group-hover/leaf:text-brand-orange underline-offset-4 hover:underline"
+            className="group/leaf flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-200 ease-in-out hover:bg-brand-orange/10 hover:border-black hover:shadow-sm"
           >
-            {leaf.name}
+            <span className="mt-[0.2em] shrink-0 text-[11px] text-brand-border transition-colors group-hover/leaf:text-brand-orange" aria-hidden="true">→</span>
+            <span className="text-[0.88rem] font-medium leading-snug text-brand-muted transition-colors group-hover/leaf:text-brand-ink">
+              {leaf.name}
+            </span>
           </button>
         </li>
       ))}
@@ -132,7 +135,7 @@ function ModulesGrid({ topics, navigate }: { topics: Topic[]; navigate: ReturnTy
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 items-start">
       {modules.map((m) => <ModuleBlock key={m.slug} module={m} navigate={navigate} />)}
       {orphans.length > 0 && (
-        <article className="flex flex-col gap-3.5 rounded-xl border border-brand-border/60 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:border-brand-orange/30 hover:shadow-md">
+        <article className="flex flex-col gap-3.5 rounded-xl border border-brand-border/60 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md">
           <div className="flex items-center justify-between gap-3 border-b border-brand-border/40 pb-3">
             <h3 className="font-display text-[1.05rem] font-semibold tracking-tight text-brand-ink">General Topics</h3>
             <span className="shrink-0 rounded-full bg-brand-bg px-2 py-0.5 text-[0.7rem] font-medium tabular-nums text-brand-muted border border-brand-border/50">
@@ -310,9 +313,7 @@ export default function Topics() {
       <div className={`${PAGE_PADDING} py-10 lg:py-12`}>
 
         {loading && (
-          <div className="flex justify-center py-20" role="status" aria-live="polite">
-            <p className="text-sm font-medium text-brand-muted">Loading topics…</p>
-          </div>
+          <PrimaryLoader className="min-h-[280px]" label="Loading topics" />
         )}
 
         {error && (

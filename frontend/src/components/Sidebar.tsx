@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { fetchCurriculum, fetchTechnologies } from '../api/curriculum'
+import { InlineLoader } from './Loader'
 import type { CurriculumNode, Technology } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -27,48 +28,48 @@ function TreeItem({
   const [open, setOpen] = useState(isActive || hasDescendantActive)
   const hasChildren = node.children.length > 0
 
-  const pl = ['pl-0', 'pl-4', 'pl-7'][Math.min(depth, 2)]
+  // Padding left scaled for hierarchy, ensures click area is consistent
+  const pl = ['pl-3', 'pl-6', 'pl-9'][Math.min(depth, 2)]
+  
+  // Font sizes for hierarchy: Module titles > Topic titles
+  const textSize = depth === 0 ? 'text-[0.95rem]' : 'text-[0.90rem]'
+  const textWeight = depth === 0 ? 'font-semibold' : 'font-medium'
 
   return (
     <li>
       <div
-        className={`group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors ${pl} ${
+        className={`group flex items-center gap-2 rounded-lg py-2 pr-3 transition-all duration-200 ease-in-out cursor-pointer ${pl} ${
           isActive
-            ? 'bg-brand-orangeSoft font-semibold text-brand-orange'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            ? 'bg-brand-orangeSoft text-brand-orange font-bold shadow-sm ring-1 ring-brand-orange/20'
+            : `text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm ${textWeight}`
         }`}
+        onClick={!isLeaf ? () => setOpen((o) => !o) : undefined}
       >
         {/* Leaf: link. Branch: expand toggle + name */}
         {isLeaf ? (
           <NavLink
             to={`/notes/${node.slug}`}
-            className="flex-1 truncate"
+            className={`flex-1 truncate block w-full outline-none ${textSize}`}
             aria-current={isActive ? 'page' : undefined}
           >
             {node.name}
           </NavLink>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              className="flex flex-1 items-center gap-1.5 truncate text-left"
-            >
-              {open ? (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              )}
-              <span className={`truncate ${depth === 0 ? 'font-semibold text-slate-800' : ''}`}>
-                {node.name}
-              </span>
-            </button>
-          </>
+          <div className="flex flex-1 items-center gap-1.5 truncate text-left w-full outline-none">
+            {open ? (
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
+            ) : (
+              <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
+            )}
+            <span className={`truncate ${textSize} ${isActive ? 'text-brand-orange' : 'text-slate-800'}`}>
+              {node.name}
+            </span>
+          </div>
         )}
       </div>
 
       {hasChildren && open && (
-        <ul className="ml-2 mt-0.5 space-y-0.5 border-l border-slate-100 pl-2">
+        <ul className="ml-1 mt-1 space-y-1 border-l-2 border-slate-100/80 pl-1">
           {node.children.map((child) => (
             <TreeItem key={child.id} node={child} depth={depth + 1} activeSlug={activeSlug} />
           ))}
@@ -138,14 +139,8 @@ export default function Sidebar() {
       {/* Tree */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="space-y-2 pt-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="h-7 animate-pulse rounded-lg bg-slate-100"
-                style={{ width: i % 2 === 0 ? '75%' : '90%' }}
-              />
-            ))}
+          <div className="flex min-h-[120px] items-center justify-center">
+            <InlineLoader label="Loading curriculum navigation" />
           </div>
         ) : error ? (
           <p className="text-xs text-red-500">{error}</p>

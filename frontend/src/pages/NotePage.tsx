@@ -5,6 +5,7 @@ import TableOfContents from '../components/TableOfContents'
 import VersionTabs from '../components/VersionTabs'
 import NoteContent from '../components/NoteContent'
 import CompareMode from '../components/CompareMode'
+import { PrimaryLoader } from '../components/Loader'
 import { useNote } from '../hooks/useNote'
 import NotFound from './NotFound'
 
@@ -19,19 +20,7 @@ export default function NotePage() {
   const [compareRight, setCompareRight] = useState('industry')
 
   if (loading) {
-    return (
-      <div className="mt-[80px] grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)_220px]">
-        <div className="hidden lg:block" />
-        <div className="space-y-4 px-2 py-6">
-          <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
-          <div className="h-10 w-3/4 animate-pulse rounded-2xl bg-slate-200" />
-          <div className="h-4 w-full animate-pulse rounded-full bg-slate-100" />
-          <div className="h-4 w-5/6 animate-pulse rounded-full bg-slate-100" />
-          <div className="mt-6 h-48 animate-pulse rounded-2xl bg-slate-100" />
-        </div>
-        <div className="hidden lg:block" />
-      </div>
-    )
+    return <PrimaryLoader className="mt-[72px] min-h-[60vh]" label="Loading note" />
   }
 
   if (error || !note) {
@@ -44,7 +33,7 @@ export default function NotePage() {
   const breadcrumb = note.topic ? `${note.topic} › ${note.title}` : note.title
 
   return (
-    <div className="space-y-0">
+    <div className="w-full max-w-full space-y-0">
       {/* Floating version tabs */}
       <VersionTabs
         selectedVersion={activeVersion}
@@ -54,7 +43,7 @@ export default function NotePage() {
         onToggleCompare={() => setCompareMode((m) => !m)}
       />
 
-      <div className={`mt-[72px] gap-6 ${compareMode ? 'flex flex-col px-4 lg:px-6' : 'grid lg:grid-cols-[260px_minmax(0,1fr)_220px]'}`}>
+      <div className={`mt-[72px] gap-6 px-4 lg:px-8 ${compareMode ? 'flex flex-col' : 'grid lg:grid-cols-[260px_minmax(0,1fr)_220px]'}`}>
         {/* Sidebar — hidden in compare mode on mobile */}
         {!compareMode && <Sidebar />}
 
@@ -78,8 +67,8 @@ export default function NotePage() {
               />
             </>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-7 shadow-sm">
-              <div className="mx-auto max-w-3xl">
+            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-7 shadow-sm min-w-0">
+              <div className="mx-auto w-full max-w-4xl min-w-0">
                 {/* Article header */}
                 <header className="border-b border-slate-100 pb-6">
                   <div className="mb-4 h-1 w-20 rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-200" />
@@ -114,7 +103,7 @@ export default function NotePage() {
                   )}
                 </header>
 
-                <div className="pt-6">
+                <div className="pt-8">
                   <NoteContent version={content} />
                 </div>
               </div>
