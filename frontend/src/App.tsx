@@ -11,6 +11,7 @@ import Topics from './pages/Topics'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import CurriculumPage from './pages/CurriculumPage'
+import NoteEditorPage from './pages/NoteEditorPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminLayout from './components/AdminLayout'
 import ManageUsers from './pages/ManageUsers'
@@ -42,6 +43,8 @@ const router = createBrowserRouter(
             { path: 'curriculum', element: <CurriculumPage /> },
             { path: 'dashboard', element: <AdminDashboard /> },
             { path: 'users', element: <ManageUsers /> },
+            { path: 'notes/:topicId/edit', element: <NoteEditorPage /> },
+            { path: 'notes/new', element: <NoteEditorPage /> },
           ]
         },
         {

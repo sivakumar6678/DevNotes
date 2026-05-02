@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   BookOpen,
   CheckCircle2,
@@ -18,16 +19,13 @@ import {
   deleteTechnology,
   deleteTopic,
   fetchCurriculum,
-  fetchNoteByTopic,
   fetchTechnologies,
   updateTechnology,
   updateTopic,
-  createVersion,
 } from '../api/curriculum'
 import CurriculumTree from '../components/CurriculumTree'
-import EditorDrawer from '../components/EditorDrawer'
 import { useAuth } from '../context/AuthContext'
-import type { CurriculumNode, Technology, TopicNoteData } from '../types'
+import type { CurriculumNode, Technology } from '../types'
 
 type NodeType = 'section' | 'topic' | 'subtopic'
 
@@ -111,6 +109,7 @@ function TechMenu({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
   const { isAdmin } = useAuth()
+  const navigate = useNavigate()
 
   // Technologies
   const [technologies, setTechnologies] = useState<Technology[]>([])
@@ -122,14 +121,8 @@ export default function CurriculumPage() {
   const [treeLoading, setTreeLoading] = useState(false)
   const [isCreatingTopic, setIsCreatingTopic] = useState(false)
 
-  // Selection + drawer
+  // Selection (for tree highlight only — editing happens on a dedicated page)
   const [selectedNode, setSelectedNode] = useState<CurriculumNode | null>(null)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [noteData, setNoteData] = useState<TopicNoteData | null>(null)
-  const [drawerLoading, setDrawerLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saveStatus, setSaveStatus] = useState('')
-  const [drawerError, setDrawerError] = useState('')
 
   // Error / status
   const [error, setError] = useState('')
@@ -273,10 +266,7 @@ export default function CurriculumPage() {
   async function handleDelete(nodeId: number) {
     try {
       await deleteTopic(nodeId)
-      if (selectedNode?.id === nodeId) {
-        setSelectedNode(null)
-        setIsDrawerOpen(false)
-      }
+      if (selectedNode?.id === nodeId) setSelectedNode(null)
       if (activeTechId) await loadTree(activeTechId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete.')
@@ -292,40 +282,11 @@ export default function CurriculumPage() {
     }
   }
 
-  // ─── Node selection / drawer ───────────────────────────────────────────────
-  async function handleNodeSelect(node: CurriculumNode) {
+  // ─── Node selection → navigate to editor page ─────────────────────────────
+  function handleNodeSelect(node: CurriculumNode) {
     setSelectedNode(node)
-    if (node.node_type !== 'subtopic') {
-      setIsDrawerOpen(false)
-      setNoteData(null)
-      return
-    }
-    setIsDrawerOpen(true)
-    setDrawerLoading(true)
-    setNoteData(null)
-    try {
-      const data = await fetchNoteByTopic(node.id)
-      setNoteData(data)
-    } catch {
-      // no note yet — OK
-    } finally {
-      setDrawerLoading(false)
-    }
-  }
-
-  async function handleSaveVersion(versionType: string, content: object) {
-    if (!selectedNode) return
-    setSaving(true)
-    setSaveStatus('')
-    setDrawerError('')
-    try {
-      await createVersion(selectedNode.id, versionType, content)
-      setSaveStatus('Saved successfully.')
-      setTimeout(() => setSaveStatus(''), 3000)
-    } catch (err) {
-      setDrawerError(err instanceof Error ? err.message : 'Save failed.')
-    } finally {
-      setSaving(false)
+    if (node.node_type === 'subtopic') {
+      navigate(`/admin/notes/${node.id}/edit`)
     }
   }
 
@@ -589,20 +550,6 @@ export default function CurriculumPage() {
             </form>
           </div>
         </div>
-      )}
-      {/* ── Editor Drawer ── */}
-      {selectedNode && selectedNode.node_type === 'subtopic' && (
-        <EditorDrawer
-          isOpen={isDrawerOpen}
-          node={selectedNode as any}
-          noteData={noteData}
-          loading={drawerLoading}
-          error={drawerError}
-          onClose={() => setIsDrawerOpen(false)}
-          onSave={handleSaveVersion}
-          saving={saving}
-          saveStatus={saveStatus}
-        />
       )}
     </div>
   )
