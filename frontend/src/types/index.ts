@@ -95,6 +95,8 @@ export interface TopicNoteData {
     technology_id: number
     type: 'technology' | 'module' | 'topic'
     breadcrumb: string
+    is_published: boolean
+    sort_order: number
   }
   note: TopicNoteSummary | null
   versions: Record<string, NoteVersion>

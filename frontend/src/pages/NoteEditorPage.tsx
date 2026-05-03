@@ -1,15 +1,24 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Save } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Save, Globe, EyeOff, Info } from 'lucide-react'
 import { PrimaryLoader, SavingLoader } from '../components/Loader'
 import NoteContent from '../components/NoteContent'
-import { fetchNoteByTopic, createVersion } from '../api/curriculum'
+import { fetchNoteByTopic, createVersion, updateTopic } from '../api/curriculum'
 import type { TopicNoteData } from '../types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const VERSION_OPTIONS = ['simple', 'industry', 'interview', 'revision', 'realtime', 'theory'] as const
-type VersionOption = (typeof VERSION_OPTIONS)[number]
+export const AVAILABLE_VERSIONS = [
+  { id: 'simple', label: 'Simple' },
+  { id: 'industry', label: 'Industry' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'revision', label: 'Revision' },
+  { id: 'realtime', label: 'Realtime' },
+  { id: 'theory', label: 'Theory' },
+  { id: 'real-world', label: 'Real World' }
+] as const
+
+type VersionOption = string
 
 const SCHEMA_FIELDS: { key: string; type: string; description: string }[] = [
   { key: 'definition', type: 'string', description: 'A concise definition of the topic.' },
@@ -42,58 +51,86 @@ const PLACEHOLDER_JSON = `{
   ]
 }`
 
-// ─── Schema Guide ─────────────────────────────────────────────────────────────
+const DEFAULT_PROMPT = `Convert the following content into a JSON object matching this schema.
 
-function SchemaGuide() {
+Return ONLY valid JSON, no markdown formatting.
+
+Keys available:
+definition (string), problem_it_solves (string), detailed_explanation (string), core_concepts (Array<{name, explanation}>), how_it_works (string), syntax (string | Array<{title, language, code}>), code_example (string | Array<{title, language, code}>), practical_example (Array<{title, description, code, explanation, language}>), real_world_example (Array<{title, description}>), common_mistakes (string[]), best_practices (string[]), interview_notes (Array<{question, answer}>).`
+
+function InstructionsPanel() {
   const [open, setOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'upload' | 'schema' | 'prompt'>('upload')
+  const [promptContent, setPromptContent] = useState(DEFAULT_PROMPT)
 
   return (
-    <section className="ne-schema-guide" aria-label="JSON Schema Reference">
-      <button
-        type="button"
-        id="schema-toggle"
-        aria-expanded={open}
-        aria-controls="schema-body"
-        onClick={() => setOpen((o) => !o)}
-        className="ne-schema-toggle"
+    <section className="ne-instructions-panel">
+      <button 
+        type="button" 
+        className="ne-instructions-header w-full flex justify-between"
+        onClick={() => setOpen(!open)}
       >
-        <span className="ne-schema-toggle-label">
-          <BookOpen size={14} aria-hidden="true" />
-          JSON Schema Reference
-        </span>
-        {open ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
+        <span className="flex items-center gap-2"><Info size={16} /> Instructions & Configuration</span>
+        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
 
       {open && (
-        <div id="schema-body" role="region" aria-labelledby="schema-toggle" className="ne-schema-body">
-          <p className="ne-schema-intro">
-            Your JSON content may contain any combination of the following top-level keys.
-            All fields are optional — include only what's relevant.
-          </p>
-          <div className="ne-schema-table-wrap">
-            <table className="ne-schema-table">
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SCHEMA_FIELDS.map((f) => (
-                  <tr key={f.key}>
-                    <td><code className="ne-code-pill">{f.key}</code></td>
-                    <td><span className="ne-type-pill">{f.type}</span></td>
-                    <td>{f.description}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          <div className="ne-instructions-tabs">
+            <button 
+              className={`ne-tab-btn ${activeTab === 'upload' ? 'ne-tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('upload')}
+            >How to Upload</button>
+            <button 
+              className={`ne-tab-btn ${activeTab === 'schema' ? 'ne-tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('schema')}
+            >JSON Schema</button>
+            <button 
+              className={`ne-tab-btn ${activeTab === 'prompt' ? 'ne-tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('prompt')}
+            >AI Prompt</button>
           </div>
-          <div className="ne-schema-tip">
-            <strong>Tip:</strong> Switch versions to copy an existing content structure, then modify it for the new version.
+
+          <div className="ne-instructions-body">
+            {activeTab === 'upload' && (
+              <div>
+                <p><strong>1. Gather content:</strong> Find raw content or documentation for the topic.</p>
+                <p><strong>2. Select version:</strong> Choose the appropriate version from the dropdown above.</p>
+                <p><strong>3. Convert to JSON:</strong> Use the provided AI prompt to convert your raw content into the required JSON structure.</p>
+                <p><strong>4. Test and Save:</strong> Paste the JSON into the editor, toggle the Preview to verify, and save your changes.</p>
+              </div>
+            )}
+            
+            {activeTab === 'schema' && (
+              <div>
+                <p>Your JSON content may contain any combination of these top-level keys. All fields are optional.</p>
+                <table className="ne-schema-table mt-4 w-full text-left border-collapse">
+                  <tbody>
+                    {SCHEMA_FIELDS.map((f) => (
+                      <tr key={f.key}>
+                        <td className="py-2 pr-4 border-b border-slate-100"><code className="ne-code-pill font-semibold text-orange-600">{f.key}</code></td>
+                        <td className="py-2 pr-4 border-b border-slate-100 text-xs text-purple-600 whitespace-nowrap">{f.type}</td>
+                        <td className="py-2 border-b border-slate-100 text-xs text-slate-600">{f.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'prompt' && (
+              <div className="flex flex-col gap-2">
+                <p>Edit the instructions below to customize how the AI models your content. Copy and paste this prompt along with your raw content into ChatGPT or Claude.</p>
+                <textarea 
+                  className="ne-prompt-textarea"
+                  value={promptContent}
+                  onChange={(e) => setPromptContent(e.target.value)}
+                  spellCheck={false}
+                />
+              </div>
+            )}
           </div>
-        </div>
+        </>
       )}
     </section>
   )
@@ -120,6 +157,12 @@ export default function NoteEditorPage() {
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
+
+  // Publish state
+  const [publishing, setPublishing] = useState(false)
+
+  // Layout view mode
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor')
 
   // ── Load note data ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -209,6 +252,27 @@ export default function NoteEditorPage() {
     }
   }, [numericTopicId, versionType, contentInput])
 
+  // ── Publish ───────────────────────────────────────────────────────────────
+  const handlePublish = useCallback(async () => {
+    if (!numericTopicId || !noteData?.topic) return
+    setPublishing(true)
+    setSaveStatus('idle')
+    setSaveMessage('')
+    try {
+      await updateTopic(numericTopicId, { is_published: !noteData.topic.is_published, sort_order: noteData.topic.sort_order })
+      setSaveStatus('success')
+      setSaveMessage(noteData.topic.is_published ? 'Topic unpublished successfully.' : 'Topic published successfully.')
+      const fresh = await fetchNoteByTopic(numericTopicId)
+      setNoteData(fresh)
+      setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)
+    } catch (err) {
+      setSaveStatus('error')
+      setSaveMessage(err instanceof Error ? err.message : 'Failed to update publish status.')
+    } finally {
+      setPublishing(false)
+    }
+  }, [numericTopicId, noteData])
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const topicName = noteData?.topic?.name ?? (loadingNote ? '' : `Topic #${topicId}`)
   const breadcrumb = noteData?.topic?.breadcrumb ?? ''
@@ -239,9 +303,26 @@ export default function NoteEditorPage() {
             </div>
           </div>
 
-          {/* Right: version selector + save */}
+          {/* Right: version selector + save + publish */}
           <div className="ne-header-right">
-            <label htmlFor="version-select" className="ne-version-label">Version</label>
+            {noteData?.topic && (
+               <span className={`ne-badge ${noteData.topic.is_published ? 'ne-badge--published' : 'ne-badge--draft'}`}>
+                  {noteData.topic.is_published ? <Globe size={12} /> : <EyeOff size={12} />}
+                  {noteData.topic.is_published ? 'Published' : 'Draft'}
+               </span>
+            )}
+            
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={publishing || loadingNote || !numericTopicId || !noteData?.topic}
+              className={`ne-publish-btn ${noteData?.topic?.is_published ? 'ne-publish-btn--published' : ''}`}
+            >
+              {noteData?.topic?.is_published ? <EyeOff size={15} /> : <Globe size={15} />}
+              {noteData?.topic?.is_published ? 'Unpublish' : 'Publish'}
+            </button>
+
+            <label htmlFor="version-select" className="ne-version-label ml-2">Version</label>
             <select
               id="version-select"
               value={versionType}
@@ -249,9 +330,9 @@ export default function NoteEditorPage() {
               disabled={saving || loadingNote}
               className="ne-version-select"
             >
-              {VERSION_OPTIONS.map((v) => (
-                <option key={v} value={v}>
-                  {v.charAt(0).toUpperCase() + v.slice(1)}
+              {AVAILABLE_VERSIONS.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
                 </option>
               ))}
             </select>
@@ -310,30 +391,32 @@ export default function NoteEditorPage() {
           </div>
         )}
 
-        {/* Editor area */}
+        {/* Main Content */}
         {!loadingNote && !loadError && (
-          <>
-            {/* Schema guide */}
-            <SchemaGuide />
+          <div className="ne-vertical-layout">
+            <InstructionsPanel />
 
-            {/* JSON error banner */}
-            {hasJsonError && contentInput.trim() && (
-              <div role="alert" aria-live="polite" className="ne-alert ne-alert--error ne-json-error">
+            <div className="ne-view-toggle">
+              <button 
+                type="button"
+                className={`ne-view-toggle-btn ${viewMode === 'editor' ? 'ne-view-toggle-btn--active' : ''}`}
+                onClick={() => setViewMode('editor')}
+              >Editor</button>
+              <button 
+                type="button"
+                className={`ne-view-toggle-btn ${viewMode === 'preview' ? 'ne-view-toggle-btn--active' : ''}`}
+                onClick={() => setViewMode('preview')}
+              >Preview</button>
+            </div>
+
+            {hasJsonError && contentInput.trim() && viewMode === 'editor' && (
+              <div role="alert" aria-live="polite" className="ne-alert ne-alert--error ne-json-error mb-4">
                 <strong>JSON Error:</strong> {jsonError}
               </div>
             )}
 
-            {/* Split pane */}
-            <div className="ne-split">
-
-              {/* Left: Editor */}
+            {viewMode === 'editor' ? (
               <section className="ne-pane ne-pane--editor" aria-label="JSON content editor">
-                <div className="ne-pane-header">
-                  <h2 className="ne-pane-title">JSON Editor</h2>
-                  <span className="ne-pane-badge">
-                    {hasJsonError && contentInput.trim() ? '⚠ Invalid JSON' : contentInput.trim() ? '✓ Valid JSON' : 'Empty'}
-                  </span>
-                </div>
                 <textarea
                   id="json-editor"
                   value={contentInput}
@@ -347,15 +430,8 @@ export default function NoteEditorPage() {
                   aria-describedby={hasJsonError ? 'json-error-msg' : undefined}
                 />
               </section>
-
-              {/* Right: Preview */}
+            ) : (
               <section className="ne-pane ne-pane--preview" aria-label="Live content preview">
-                <div className="ne-pane-header">
-                  <h2 className="ne-pane-title">Live Preview</h2>
-                  <span className="ne-pane-badge ne-pane-badge--preview">
-                    {versionType.charAt(0).toUpperCase() + versionType.slice(1)}
-                  </span>
-                </div>
                 <div className="ne-preview-scroll">
                   {parsedPreview ? (
                     <NoteContent version={parsedPreview as Record<string, any>} />
@@ -372,9 +448,8 @@ export default function NoteEditorPage() {
                   )}
                 </div>
               </section>
-
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
     </div>

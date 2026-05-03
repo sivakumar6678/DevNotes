@@ -100,8 +100,12 @@ class TopicService:
 
 
     @staticmethod
-    def _serialize_tree_node(topic: Topic) -> dict:
-        children = topic.children.order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
+    def _serialize_tree_node(topic: Topic, published_only: bool = False) -> dict:
+        children_query = topic.children.order_by(Topic.sort_order.asc(), Topic.created_at.asc())
+        if published_only:
+            children_query = children_query.filter_by(is_published=True)
+        children = children_query.all()
+        
         return {
             "id": topic.id,
             "name": topic.name,
@@ -113,7 +117,7 @@ class TopicService:
             "is_published": topic.is_published,
             "type": topic.node_type,
             "created_at": topic.created_at.isoformat() if topic.created_at else None,
-            "children": [TopicService._serialize_tree_node(child) for child in children],
+            "children": [TopicService._serialize_tree_node(child, published_only=published_only) for child in children],
         }
 
     @staticmethod
@@ -154,16 +158,19 @@ class TopicService:
         return [TopicService._serialize_flat_topic(topic) for topic in topics]
 
     @staticmethod
-    def list_topics_by_technology(technology_id: int) -> list[dict]:
-        modules = Topic.query.filter_by(technology_id=technology_id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
-        return [TopicService._serialize_tree_node(child) for child in modules]
+    def list_topics_by_technology(technology_id: int, published_only: bool = False) -> list[dict]:
+        query = Topic.query.filter_by(technology_id=technology_id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc())
+        if published_only:
+            query = query.filter_by(is_published=True)
+        modules = query.all()
+        return [TopicService._serialize_tree_node(child, published_only=published_only) for child in modules]
 
     @staticmethod
-    def list_topics_by_technology_slug(tech_slug: str) -> list[dict]:
+    def list_topics_by_technology_slug(tech_slug: str, published_only: bool = False) -> list[dict]:
         tech = Technology.query.filter_by(slug=tech_slug).first()
         if not tech:
             raise NotFoundError(f"Technology with slug '{tech_slug}' not found.")
-        return TopicService.list_topics_by_technology(tech.id)
+        return TopicService.list_topics_by_technology(tech.id, published_only=published_only)
 
     @staticmethod
     def _validate_parent_for_technology(parent: Topic | None, technology_id: int) -> None:

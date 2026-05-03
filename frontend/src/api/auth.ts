@@ -28,6 +28,12 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
     : await response.text().catch(() => null)
 
   if (!response.ok) {
+    if (response.status === 401 && !url.includes('/api/auth/login') && !url.includes('/api/auth/signup')) {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem('auth_user')
+      window.location.replace('/login')
+    }
+
     const message = (data && data.error && data.error.message) || 'Request failed'
     const error = new Error(message) as any
     error.status = response.status

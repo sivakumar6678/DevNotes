@@ -31,6 +31,7 @@ class Config:
 
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
+    JWT_ACCESS_TOKEN_EXPIRES = __import__("datetime").timedelta(hours=24)
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173")
 
     @property
