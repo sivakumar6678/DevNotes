@@ -1,9 +1,10 @@
 from flask import Flask, jsonify
+from flask_compress import Compress
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
 from .config import get_config
-from .extensions import migrate
+from .extensions import cache, migrate
 from .routes import api_bp
 from .services.auth_service import AuthService
 from .services.note_service import NoteService
@@ -20,8 +21,10 @@ def create_app() -> Flask:
 
     db.init_app(app)
     migrate.init_app(app, db)
+    cache.init_app(app)
     JWTManager(app)
     CORS(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}})
+    Compress(app)
 
     app.register_blueprint(api_bp)
 

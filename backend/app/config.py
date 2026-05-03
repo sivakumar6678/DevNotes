@@ -34,6 +34,20 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = __import__("datetime").timedelta(hours=24)
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173")
 
+    # -------------------------------------------------------------------------
+    # Flask-Compress — gzip all JSON/text responses above 500 bytes
+    # -------------------------------------------------------------------------
+    COMPRESS_REGISTER = True          # auto-compress on every response
+    COMPRESS_MIN_SIZE = 500           # bytes — skip tiny responses
+    COMPRESS_LEVEL = 6                # gzip level: 1 (fast) – 9 (small); 6 is the sweet spot
+    COMPRESS_ALGORITHM = ["gzip", "br", "deflate"]   # priority order
+
+    # -------------------------------------------------------------------------
+    # Flask-Caching — in-process SimpleCache (no external dependency)
+    # -------------------------------------------------------------------------
+    CACHE_TYPE = "SimpleCache"        # thread-safe in-memory cache
+    CACHE_DEFAULT_TIMEOUT = 300       # seconds — 5 minutes
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         db_url = os.getenv("DATABASE_URL")

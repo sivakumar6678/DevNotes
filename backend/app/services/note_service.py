@@ -1,5 +1,6 @@
 from app.utils.db import db
 from app.models import Note, NoteVersion, Topic
+from app.models.note_version import VersionType
 from app.utils.errors import NotFoundError, ValidationError
 from app.utils.slugify import slugify
 
@@ -215,6 +216,84 @@ class NoteService:
             "topic": topic_path,
             "label": " > ".join(item.name for item in topic_chain),
             "versions": versions_map,
+        }
+
+    @staticmethod
+    def get_note_by_slug_and_version(slug: str, version_type: str = "industry") -> dict:
+        """Return topic details + a single requested version only.
+
+        This is the optimised, payload-minimal alternative to
+        ``get_note_with_versions``.  Only one ``NoteVersion`` row is fetched
+        from the database instead of the entire set.
+
+        Args:
+            slug:         The note / topic slug.
+            version_type: One of the ``VersionType`` enum values
+                          (``industry``, ``simple``, ``interview``, …).
+                          Defaults to ``"industry"``.
+
+        Returns:
+            A dict with keys ``topic``, ``version``, and ``content``.
+
+        Raises:
+            NotFoundError: When the note slug or the requested version is not
+                           found in the database and no demo fallback exists.
+        """
+        # --- Validate the requested version type early -----------------------
+        try:
+            requested_vt = VersionType(version_type.lower())
+        except ValueError:
+            valid = ", ".join(v.value for v in VersionType)
+            raise ValidationError(
+                f"Invalid version type '{version_type}'. Valid options: {valid}."
+            )
+
+        # --- Resolve the note ------------------------------------------------
+        note = Note.query.filter_by(slug=slug).first()
+
+        if not note:
+            # Fall back to demo notes if available
+            demo = DEMO_NOTES.get(slug)
+            if demo:
+                content = demo.get("versions", {}).get(requested_vt.value)
+                if content is None:
+                    raise NotFoundError(
+                        f"Version '{requested_vt.value}' not found for note '{slug}'."
+                    )
+                return {
+                    "topic": {
+                        "id": None,
+                        "name": demo.get("title", slug),
+                    },
+                    "version": requested_vt.value,
+                    "content": content,
+                }
+            raise NotFoundError(f"Note '{slug}' not found.")
+
+        # --- Resolve the associated topic ------------------------------------
+        topic = db.session.get(Topic, note.topic_id)
+        if not topic:
+            raise NotFoundError("Associated topic not found.")
+
+        # --- Fetch only the single requested version row ---------------------
+        version = (
+            NoteVersion.query
+            .filter_by(note_id=note.id, version_type=requested_vt)
+            .first()
+        )
+
+        if not version:
+            raise NotFoundError(
+                f"Version '{requested_vt.value}' not found for note '{slug}'."
+            )
+
+        return {
+            "topic": {
+                "id": topic.id,
+                "name": topic.name,
+            },
+            "version": requested_vt.value,
+            "content": version.content,
         }
 
     @staticmethod
