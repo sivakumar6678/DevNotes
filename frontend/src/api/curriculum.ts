@@ -106,7 +106,30 @@ export async function deleteTopic(topicId: number): Promise<{ deleted_ids: numbe
 // ─── Notes ───────────────────────────────────────────────────────────────────
 
 export async function fetchNoteByTopic(topicId: number): Promise<TopicNoteData> {
-  return apiFetch<TopicNoteData>(`/api/topics/${topicId}/note`)
+  const noteData = await apiFetch<TopicNoteData>(`/api/topics/${topicId}/note`)
+  
+  try {
+    // Fetch curriculum tree to get the missing is_published and sort_order fields
+    const nodes = await fetchCurriculumAdmin(noteData.topic.technology_id)
+    
+    let foundNode: CurriculumNode | undefined
+    function findNode(tree: CurriculumNode[]) {
+      for (const n of tree) {
+        if (n.id === topicId) foundNode = n
+        if (!foundNode && n.children) findNode(n.children)
+      }
+    }
+    findNode(nodes)
+    
+    if (foundNode) {
+      noteData.topic.is_published = foundNode.is_published
+      noteData.topic.sort_order = foundNode.sort_order
+    }
+  } catch (err) {
+    console.error('Failed to augment note data with publish status:', err)
+  }
+  
+  return noteData
 }
 
 export async function createVersion(topicId: number, versionType: string, content: object) {

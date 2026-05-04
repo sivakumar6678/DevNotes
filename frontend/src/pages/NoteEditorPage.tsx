@@ -51,7 +51,7 @@ export default function NoteEditorPage() {
 
   // Editor state
   const [versionType, setVersionType] = useState<VersionOption>('industry')
-  const [contentInput, setContentInput] = useState('')
+  const [contentInputs, setContentInputs] = useState<Record<string, string>>({})
   const [jsonError, setJsonError] = useState('')
 
   // Save state
@@ -86,14 +86,33 @@ export default function NoteEditorPage() {
     return () => { cancelled = true }
   }, [numericTopicId])
 
-  // ── Sync textarea when version or noteData changes ────────────────────────
+  // Clear drafts when switching topics
   useEffect(() => {
-    const versionContent = noteData?.versions?.[versionType]
-    setContentInput(versionContent ? JSON.stringify(versionContent, null, 2) : '')
+    setContentInputs({})
+  }, [numericTopicId])
+
+  // ── Sync textarea when noteData changes ───────────────────────────────────
+  useEffect(() => {
+    if (!noteData?.versions) return
+    setContentInputs((prev) => {
+      const next = { ...prev }
+      for (const v of AVAILABLE_VERSIONS) {
+        if (next[v.id] === undefined && noteData.versions[v.id]) {
+          next[v.id] = JSON.stringify(noteData.versions[v.id], null, 2)
+        }
+      }
+      return next
+    })
+  }, [noteData])
+
+  const contentInput = contentInputs[versionType] ?? ''
+
+  // Clear errors when switching versions
+  useEffect(() => {
     setJsonError('')
     setSaveStatus('idle')
     setSaveMessage('')
-  }, [versionType, noteData])
+  }, [versionType])
 
   // ── Live JSON parse for preview ────────────────────────────────────────────
   const parsedPreview = useMemo<Record<string, unknown> | null>(() => {
@@ -219,8 +238,22 @@ export default function NoteEditorPage() {
               disabled={publishing || loadingNote || !numericTopicId || !noteData?.topic}
               className={`ne-publish-btn ${noteData?.topic?.is_published ? 'ne-publish-btn--published' : ''}`}
             >
-              {noteData?.topic?.is_published ? <EyeOff size={15} /> : <Globe size={15} />}
-              {noteData?.topic?.is_published ? 'Unpublish' : 'Publish'}
+              {publishing ? (
+                <>
+                  <SavingLoader label="Publishing..." />
+                  Publishing…
+                </>
+              ) : noteData?.topic?.is_published ? (
+                <>
+                  <EyeOff size={15} />
+                  Unpublish
+                </>
+              ) : (
+                <>
+                  <Globe size={15} />
+                  Publish
+                </>
+              )}
             </button>
 
             <label htmlFor="version-select" className="ne-version-label ml-2">Version</label>
@@ -320,7 +353,7 @@ export default function NoteEditorPage() {
                 <textarea
                   id="json-editor"
                   value={contentInput}
-                  onChange={(e) => setContentInput(e.target.value)}
+                  onChange={(e) => setContentInputs(prev => ({ ...prev, [versionType]: e.target.value }))}
                   placeholder={PLACEHOLDER_JSON}
                   spellCheck={false}
                   autoCorrect="off"

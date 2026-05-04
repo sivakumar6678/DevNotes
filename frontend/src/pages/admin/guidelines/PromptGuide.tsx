@@ -4,27 +4,69 @@ import { Copy, Check } from 'lucide-react'
 const PROMPTS: Record<string, { label: string; prompt: string }> = {
   industry: {
     label: 'Industry',
-    prompt: `Context: I am creating an "Industry" guide for developers about [TOPIC].
+    prompt: `Convert the following developer note into structured JSON.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Extract the core architectural usage, production considerations, and best practices.
+      ### Schema:
 
-Schema Required:
-{
-  "problem_it_solves": "What problem this concept addresses in production.",
-  "how_it_works": "Step-by-step mechanism description.",
-  "practical_example": [
-    {
-      "title": "Example Title",
-      "description": "...",
-      "code": "...",
-      "explanation": "...",
-      "language": "javascript"
-    }
-  ],
-  "best_practices": ["Best practice 1", "Best practice 2"]
-}
+      * definition: string
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+      * problem_it_solves: string
+
+      * detailed_explanation: string
+
+      * core_concepts: array of objects
+
+        * name
+        * explanation
+
+      * how_it_works: string
+
+      * syntax: array of objects
+
+        * title
+        * language
+        * code (ONLY code, no explanation)
+
+      * code_example: array of objects
+
+        * title
+        * language
+        * code (ONLY code)
+
+      * practical_example: array of objects
+
+        * title
+        * description
+        * code
+        * explanation
+
+      * real_world_example: array of objects
+
+        * title
+        * description
+
+      * common_mistakes: array of strings
+
+      * best_practices: array of strings
+
+      * interview_notes: array of objects
+
+        * question
+        * answer
+
+      ---
+
+      ### Rules:
+
+      * DO NOT mix text and code in the same field
+      * Code must be in "code" field only
+      * Explanations must be separate
+      * Use arrays wherever multiple items exist
+      * Keep content clean and structured
+      * Do not skip any sections
+      * Maintain clarity and readability
+
+      Now convert the provided content into this format.`
   },
   interview: {
     label: 'Interview',
@@ -169,11 +211,10 @@ export default function PromptGuide() {
           <button
             key={id}
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-              activeVersion === id
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${activeVersion === id
                 ? 'bg-orange-50 border-brand-orange text-brand-orange'
                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+              }`}
             onClick={() => setActiveVersion(id)}
           >
             {config.label}
@@ -198,7 +239,7 @@ export default function PromptGuide() {
           </pre>
         </div>
       </div>
-      
+
       <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-5">
         <h3 className="text-sm font-bold text-blue-900 mb-2">Tips for success</h3>
         <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">

@@ -147,11 +147,17 @@ button {
 /* ── Sticky header ────────────────────────────────────────────────────────── */
 .ne-header {
   position: sticky;
-  top: 0;
+  top: 6rem; /* aligns with pt-24 in mobile */
   z-index: 30;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+@media (min-width: 1024px) {
+  .ne-header {
+    top: 7rem; /* aligns with pt-28 in lg */
+  }
 }
 
 .ne-header-inner {

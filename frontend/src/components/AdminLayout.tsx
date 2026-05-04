@@ -27,9 +27,9 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-7rem)]">
+    <div className="flex relative">
       {/* ── Left sidebar ── */}
-      <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+      <aside className="sticky top-0 h-screen w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col">
         <div className="flex h-14 items-center px-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900 tracking-tight">Admin</h2>
         </div>
@@ -124,7 +124,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* ── Main content area ── */}
-      <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50">
+      <main className="flex-1 min-w-0 bg-slate-50">
         <Outlet />
       </main>
     </div>
