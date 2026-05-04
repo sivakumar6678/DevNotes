@@ -1,7 +1,10 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/Layout'
 import About from './pages/About'
-import AdminDashboard from './pages/AdminDashboard'
+
+import UploadGuide from './pages/admin/guidelines/UploadGuide'
+import SchemaGuide from './pages/admin/guidelines/SchemaGuide'
+import PromptGuide from './pages/admin/guidelines/PromptGuide'
 
 import Home from './pages/Home'
 import NotePage from './pages/NotePage'
@@ -41,10 +44,12 @@ const router = createBrowserRouter(
           children: [
             { index: true, element: <Navigate to="curriculum" replace /> },
             { path: 'curriculum', element: <CurriculumPage /> },
-            { path: 'dashboard', element: <AdminDashboard /> },
             { path: 'users', element: <ManageUsers /> },
             { path: 'notes/:topicId/edit', element: <NoteEditorPage /> },
             { path: 'notes/new', element: <NoteEditorPage /> },
+            { path: 'guidelines/upload', element: <UploadGuide /> },
+            { path: 'guidelines/schema', element: <SchemaGuide /> },
+            { path: 'guidelines/prompt', element: <PromptGuide /> },
           ]
         },
         {

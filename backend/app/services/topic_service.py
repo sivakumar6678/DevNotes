@@ -12,11 +12,17 @@ from app.utils.slugify import slugify
 
 class TopicService:
     @staticmethod
-    def get_curriculum_tree() -> list[dict]:
-        technologies = Technology.query.order_by(Technology.name.asc()).all()
+    def get_curriculum_tree(published_only: bool = False) -> list[dict]:
+        query = Technology.query.order_by(Technology.name.asc())
+        if published_only:
+            query = query.filter_by(is_published=True)
+        technologies = query.all()
         result = []
         for tech in technologies:
-            modules = Topic.query.filter_by(technology_id=tech.id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc()).all()
+            modules_q = Topic.query.filter_by(technology_id=tech.id, parent_id=None).order_by(Topic.sort_order.asc(), Topic.created_at.asc())
+            if published_only:
+                modules_q = modules_q.filter_by(is_published=True)
+            modules = modules_q.all()
             tech_node = {
                 "id": tech.id,
                 "name": tech.name,
@@ -25,7 +31,7 @@ class TopicService:
                 "parent_id": None,
                 "type": "technology",
                 "created_at": None,
-                "children": [TopicService._serialize_tree_node(m) for m in modules]
+                "children": [TopicService._serialize_tree_node(m, published_only=published_only) for m in modules]
             }
             result.append(tech_node)
         return result

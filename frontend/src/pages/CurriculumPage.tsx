@@ -18,7 +18,7 @@ import {
   createTopic,
   deleteTechnology,
   deleteTopic,
-  fetchCurriculum,
+  fetchCurriculumAdmin,
   fetchTechnologies,
   updateTechnology,
   updateTopic,
@@ -158,7 +158,7 @@ export default function CurriculumPage() {
     setTree([])
     setError('')
     try {
-      const nodes = await fetchCurriculum(techId)
+      const nodes = await fetchCurriculumAdmin(techId)
       setTree(nodes)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load curriculum.')
@@ -314,7 +314,7 @@ export default function CurriculumPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex flex-col bg-slate-50">
       {/* ── Header ── */}
       <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">

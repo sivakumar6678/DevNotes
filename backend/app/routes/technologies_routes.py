@@ -6,10 +6,10 @@ from app.utils.auth import require_admin_user
 
 
 def list_technologies():
-    """Public: returns published technologies. Admins see all."""
+    """Public: returns published technologies only. Admins see all (draft + published)."""
     from app.utils.db import db
     from app.models.user import User
-    from flask_jwt_extended import verify_jwt_in_request, exceptions as jwt_exceptions
+    from flask_jwt_extended import verify_jwt_in_request
     try:
         verify_jwt_in_request(optional=True)
         identity = get_jwt_identity()
@@ -21,7 +21,8 @@ def list_technologies():
     except Exception:
         pass
 
-    technologies = TechnologyService.list_technologies(published_only=False)
+    # Non-admin / unauthenticated: published only
+    technologies = TechnologyService.list_technologies(published_only=True)
     return jsonify({"status": "success", "data": technologies})
 
 

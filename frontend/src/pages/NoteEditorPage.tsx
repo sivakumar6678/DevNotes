@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, ChevronUp, Save, Globe, EyeOff, Info } from 'lucide-react'
+import { ArrowLeft, Save, Globe, EyeOff } from 'lucide-react'
 import { PrimaryLoader, SavingLoader } from '../components/Loader'
 import NoteContent from '../components/NoteContent'
 import { fetchNoteByTopic, createVersion, updateTopic } from '../api/curriculum'
@@ -9,31 +9,16 @@ import type { TopicNoteData } from '../types'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const AVAILABLE_VERSIONS = [
-  { id: 'simple', label: 'Simple' },
-  { id: 'industry', label: 'Industry' },
-  { id: 'interview', label: 'Interview' },
-  { id: 'revision', label: 'Revision' },
-  { id: 'realtime', label: 'Realtime' },
-  { id: 'theory', label: 'Theory' },
-  { id: 'real-world', label: 'Real World' }
+  { id: 'industry', label: 'Industry', description: 'Deep-dive into production usage and architecture' },
+  { id: 'interview', label: 'Interview', description: 'Q&A format for interview preparation' },
+  { id: 'theory', label: 'Theory', description: 'Comprehensive theoretical explanation' },
+  { id: 'simple', label: 'Simple', description: 'Beginner-friendly introductory content' },
+  { id: 'revision', label: 'Revision', description: 'Quick summary for exam or last-minute review' },
+  { id: 'realtime', label: 'Real-time', description: 'Practical real-world implementation examples' }
 ] as const
 
 type VersionOption = string
 
-const SCHEMA_FIELDS: { key: string; type: string; description: string }[] = [
-  { key: 'definition', type: 'string', description: 'A concise definition of the topic.' },
-  { key: 'problem_it_solves', type: 'string', description: 'What problem this concept addresses.' },
-  { key: 'detailed_explanation', type: 'string', description: 'In-depth multi-paragraph explanation.' },
-  { key: 'core_concepts', type: 'Array<{name, explanation}>', description: 'Key sub-concepts as a list.' },
-  { key: 'how_it_works', type: 'string', description: 'Step-by-step mechanism description.' },
-  { key: 'syntax', type: 'string | Array<{title, language, code}>', description: 'Syntax snippets or blocks.' },
-  { key: 'code_example', type: 'string | Array<{title, language, code}>', description: 'Code examples with optional language.' },
-  { key: 'practical_example', type: 'Array<{title, description, code, explanation, language}>', description: 'Worked practical examples.' },
-  { key: 'real_world_example', type: 'Array<{title, description}>', description: 'Real-world usage scenarios.' },
-  { key: 'common_mistakes', type: 'string[]', description: 'Pitfalls and common errors.' },
-  { key: 'best_practices', type: 'string[]', description: 'Recommended patterns and conventions.' },
-  { key: 'interview_notes', type: 'Array<{question, answer}>', description: 'Q&A pairs for interview prep.' },
-]
 
 const PLACEHOLDER_JSON = `{
   "definition": "A concise definition...",
@@ -51,90 +36,6 @@ const PLACEHOLDER_JSON = `{
   ]
 }`
 
-const DEFAULT_PROMPT = `Convert the following content into a JSON object matching this schema.
-
-Return ONLY valid JSON, no markdown formatting.
-
-Keys available:
-definition (string), problem_it_solves (string), detailed_explanation (string), core_concepts (Array<{name, explanation}>), how_it_works (string), syntax (string | Array<{title, language, code}>), code_example (string | Array<{title, language, code}>), practical_example (Array<{title, description, code, explanation, language}>), real_world_example (Array<{title, description}>), common_mistakes (string[]), best_practices (string[]), interview_notes (Array<{question, answer}>).`
-
-function InstructionsPanel() {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'upload' | 'schema' | 'prompt'>('upload')
-  const [promptContent, setPromptContent] = useState(DEFAULT_PROMPT)
-
-  return (
-    <section className="ne-instructions-panel">
-      <button 
-        type="button" 
-        className="ne-instructions-header w-full flex justify-between"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="flex items-center gap-2"><Info size={16} /> Instructions & Configuration</span>
-        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-
-      {open && (
-        <>
-          <div className="ne-instructions-tabs">
-            <button 
-              className={`ne-tab-btn ${activeTab === 'upload' ? 'ne-tab-btn--active' : ''}`}
-              onClick={() => setActiveTab('upload')}
-            >How to Upload</button>
-            <button 
-              className={`ne-tab-btn ${activeTab === 'schema' ? 'ne-tab-btn--active' : ''}`}
-              onClick={() => setActiveTab('schema')}
-            >JSON Schema</button>
-            <button 
-              className={`ne-tab-btn ${activeTab === 'prompt' ? 'ne-tab-btn--active' : ''}`}
-              onClick={() => setActiveTab('prompt')}
-            >AI Prompt</button>
-          </div>
-
-          <div className="ne-instructions-body">
-            {activeTab === 'upload' && (
-              <div>
-                <p><strong>1. Gather content:</strong> Find raw content or documentation for the topic.</p>
-                <p><strong>2. Select version:</strong> Choose the appropriate version from the dropdown above.</p>
-                <p><strong>3. Convert to JSON:</strong> Use the provided AI prompt to convert your raw content into the required JSON structure.</p>
-                <p><strong>4. Test and Save:</strong> Paste the JSON into the editor, toggle the Preview to verify, and save your changes.</p>
-              </div>
-            )}
-            
-            {activeTab === 'schema' && (
-              <div>
-                <p>Your JSON content may contain any combination of these top-level keys. All fields are optional.</p>
-                <table className="ne-schema-table mt-4 w-full text-left border-collapse">
-                  <tbody>
-                    {SCHEMA_FIELDS.map((f) => (
-                      <tr key={f.key}>
-                        <td className="py-2 pr-4 border-b border-slate-100"><code className="ne-code-pill font-semibold text-orange-600">{f.key}</code></td>
-                        <td className="py-2 pr-4 border-b border-slate-100 text-xs text-purple-600 whitespace-nowrap">{f.type}</td>
-                        <td className="py-2 border-b border-slate-100 text-xs text-slate-600">{f.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {activeTab === 'prompt' && (
-              <div className="flex flex-col gap-2">
-                <p>Edit the instructions below to customize how the AI models your content. Copy and paste this prompt along with your raw content into ChatGPT or Claude.</p>
-                <textarea 
-                  className="ne-prompt-textarea"
-                  value={promptContent}
-                  onChange={(e) => setPromptContent(e.target.value)}
-                  spellCheck={false}
-                />
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </section>
-  )
-}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -394,7 +295,6 @@ export default function NoteEditorPage() {
         {/* Main Content */}
         {!loadingNote && !loadError && (
           <div className="ne-vertical-layout">
-            <InstructionsPanel />
 
             <div className="ne-view-toggle">
               <button 

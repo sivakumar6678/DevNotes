@@ -28,14 +28,14 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   return data
 }
 
-export async function getNote(slug: string): Promise<NoteDetailResponse> {
-  const cacheKey = `note:${slug}`
-  const cached = getCache(cacheKey)
+export async function getNote(slug: string, version: string = 'industry'): Promise<NoteDetailResponse> {
+  const cacheKey = `note_${slug}_${version}`
+  const cached = getCache<NoteDetailResponse>(cacheKey)
   if (cached) {
     return cached
   }
 
-  const note = await apiFetch(`/api/notes/${encodeURIComponent(slug)}`)
+  const note = await apiFetch(`/api/notes/${encodeURIComponent(slug)}?version=${encodeURIComponent(version)}`)
   setCache(cacheKey, note)
   return note
 }

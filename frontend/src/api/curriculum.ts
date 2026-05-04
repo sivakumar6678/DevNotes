@@ -57,6 +57,18 @@ function normalizeCurriculumNode(node: CurriculumNode): CurriculumNode {
   }
 }
 
+/**
+ * Admin: fetches ALL topics (draft + published) for a technology.
+ * Requires a valid admin JWT (sent automatically by apiFetch via auth token).
+ */
+export async function fetchCurriculumAdmin(technologyId: number): Promise<CurriculumNode[]> {
+  const nodes = await apiFetch<CurriculumNode[]>(`/api/admin/topics/technology/${technologyId}`)
+  return (nodes ?? []).map(normalizeCurriculumNode)
+}
+
+/**
+ * Public: fetches only published topics for a technology (or the whole tree).
+ */
 export async function fetchCurriculum(technologyId?: number): Promise<CurriculumNode[]> {
   const path = technologyId
     ? `/api/topics/technology/${technologyId}`
@@ -64,6 +76,7 @@ export async function fetchCurriculum(technologyId?: number): Promise<Curriculum
   const nodes = await apiFetch<CurriculumNode[]>(path)
   return (nodes ?? []).map(normalizeCurriculumNode)
 }
+
 
 // ─── Topics CRUD ──────────────────────────────────────────────────────────────
 

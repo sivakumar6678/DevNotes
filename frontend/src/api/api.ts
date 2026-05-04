@@ -36,7 +36,7 @@ type ApiListResponse<T> = {
 
 export async function getTechnologies(): Promise<Technology[]> {
   const cacheKey = 'technologies'
-  const cached = getCache(cacheKey)
+  const cached = getCache<Technology[]>(cacheKey)
   if (cached) {
     return cached
   }
@@ -54,7 +54,7 @@ export async function getTechnologies(): Promise<Technology[]> {
 
 export async function getTopics(techSlug: string): Promise<Topic[]> {
   const cacheKey = `topics:${techSlug}`
-  const cached = getCache(cacheKey)
+  const cached = getCache<Topic[]>(cacheKey)
   if (cached) {
     return cached
   }
@@ -72,14 +72,14 @@ export async function getTopics(techSlug: string): Promise<Topic[]> {
   return topics
 }
 
-export async function getNote(slug: string): Promise<Note> {
-  const cacheKey = `note:${slug}`
-  const cached = getCache(cacheKey)
+export async function getNote(slug: string, version: string = 'industry'): Promise<Note> {
+  const cacheKey = `note_${slug}_${version}`
+  const cached = getCache<Note>(cacheKey)
   if (cached) {
     return cached
   }
 
-  const note = await apiFetch<Note>(`/api/notes/${encodeURIComponent(slug)}`)
+  const note = await apiFetch<Note>(`/api/notes/${encodeURIComponent(slug)}?version=${encodeURIComponent(version)}`)
   setCache(cacheKey, note)
   return note
 }

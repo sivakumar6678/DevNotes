@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import NoteContent from './NoteContent'
 
 const VERSION_LABELS: Record<string, string> = {
@@ -18,7 +19,7 @@ interface CompareModeProps {
   onChangeRight: (v: string) => void
 }
 
-export default function CompareMode({
+export default memo(function CompareMode({
   versions,
   leftVersion,
   rightVersion,
@@ -58,4 +59,4 @@ export default function CompareMode({
       )}
     </div>
   )
-}
+})

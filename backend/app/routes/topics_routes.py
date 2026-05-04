@@ -7,11 +7,13 @@ from app.utils.auth import require_admin_user
 
 
 def get_curriculum():
-    return jsonify(TopicService.get_curriculum_tree())
+    """Public: returns only published topics in the curriculum tree."""
+    return jsonify(TopicService.get_curriculum_tree(published_only=True))
 
 
 def get_topics_tree():
-    return jsonify(TopicService.get_curriculum_tree())
+    """Public: returns only published topics in the curriculum tree."""
+    return jsonify(TopicService.get_curriculum_tree(published_only=True))
 
 
 def list_topics():
@@ -38,18 +40,37 @@ def list_topics():
 
 
 def list_topics_by_technology(technology_id: int):
+    """Public: published topics only."""
     topics = TopicService.list_topics_by_technology(technology_id, published_only=True)
     return jsonify(topics)
 
 
 def list_topics_by_technology_slug(tech_slug: str):
+    """Public: published topics only."""
     topics = TopicService.list_topics_by_technology_slug(tech_slug, published_only=True)
     return jsonify({"topics": topics})
 
 
+@jwt_required()
+def admin_list_topics_by_technology(technology_id: int):
+    """Admin only: returns all topics (draft + published) for a technology."""
+    require_admin_user()
+    topics = TopicService.list_topics_by_technology(technology_id, published_only=False)
+    return jsonify(topics)
+
+
 def get_children(parent_id: int):
+    """Public: returns only published children."""
     parent = TopicService._get_topic(parent_id)
-    children = [TopicService._serialize_tree_node(child, published_only=True) for child in parent.children.order_by(Topic.sort_order.asc(), Topic.created_at.asc()).filter_by(is_published=True).all()]
+    children = [
+        TopicService._serialize_tree_node(child, published_only=True)
+        for child in (
+            parent.children
+            .order_by(Topic.sort_order.asc(), Topic.created_at.asc())
+            .filter_by(is_published=True)
+            .all()
+        )
+    ]
     return jsonify(children)
 
 

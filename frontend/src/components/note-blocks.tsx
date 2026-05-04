@@ -1,6 +1,11 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { NoteCodeItem, NoteConceptItem, NoteExampleItem } from './noteContentSchema'
+import { useInView } from '../hooks/useInView'
+
+// ---------------------------------------------------------------------------
+// Inline helpers (module-level, never re-created)
+// ---------------------------------------------------------------------------
 
 function renderInlineMarkdown(text: string): ReactNode[] {
   const tokens = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean)
@@ -34,35 +39,20 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
 
   const flushParagraph = () => {
     const text = paragraphBuffer.join(' ').trim()
-    if (text) {
-      blocks.push({ type: 'paragraph', content: text })
-    }
+    if (text) blocks.push({ type: 'paragraph', content: text })
     paragraphBuffer = []
   }
 
   const flushList = () => {
-    if (listBuffer.length) {
-      blocks.push({ type: 'list', items: listBuffer })
-    }
+    if (listBuffer.length) blocks.push({ type: 'list', items: listBuffer })
     listBuffer = []
   }
 
   lines.forEach((rawLine) => {
     const line = rawLine.trim()
-
-    if (!line) {
-      flushParagraph()
-      flushList()
-      return
-    }
-
+    if (!line) { flushParagraph(); flushList(); return }
     const listMatch = line.match(/^[-*]\s+(.+)$/)
-    if (listMatch) {
-      flushParagraph()
-      listBuffer.push(listMatch[1].trim())
-      return
-    }
-
+    if (listMatch) { flushParagraph(); listBuffer.push(listMatch[1].trim()); return }
     flushList()
     paragraphBuffer.push(line)
   })
@@ -83,7 +73,6 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
         </ul>
       )
     }
-
     return (
       <p key={index} className={paragraphClassName}>
         {renderInlineMarkdown(block.content)}
@@ -92,23 +81,50 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
   })
 }
 
-function SectionShell({ children }: { children: ReactNode }) {
+// ---------------------------------------------------------------------------
+// Skeleton shown while a code block is outside the viewport
+// ---------------------------------------------------------------------------
+
+const CodeBlockSkeleton = memo(function CodeBlockSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
+      <div className="flex items-center justify-between border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
+        <div className="h-3 w-24 animate-pulse rounded bg-slate-600/60" />
+      </div>
+      <div className="space-y-2 px-4 py-4">
+        {[80, 60, 70, 50].map((w, i) => (
+          <div key={i} className={`h-3 animate-pulse rounded bg-slate-700/60`} style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// SectionShell (internal)
+// ---------------------------------------------------------------------------
+
+const SectionShell = memo(function SectionShell({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-[1.75rem] border border-slate-200/80 bg-white px-5 py-6 shadow-[0_16px_40px_rgba(15,23,42,0.05)] sm:px-7">
       {children}
     </div>
   )
-}
+})
 
-export function HeadingBlock({ id, title }: { id: string; title: string }) {
+// ---------------------------------------------------------------------------
+// Exported blocks — all wrapped with React.memo
+// ---------------------------------------------------------------------------
+
+export const HeadingBlock = memo(function HeadingBlock({ id, title }: { id: string; title: string }) {
   return (
     <div id={id} className="scroll-mt-32">
       <h2 className="font-display text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
     </div>
   )
-}
+})
 
-export function TextBlock({ paragraphs }: { paragraphs: string[] }) {
+export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: string[] }) {
   return (
     <div className="space-y-4">
       {paragraphs.map((paragraph, index) => (
@@ -118,18 +134,28 @@ export function TextBlock({ paragraphs }: { paragraphs: string[] }) {
       ))}
     </div>
   )
-}
+})
 
-export function CodeBlock({ item, fallbackLanguage }: { item: NoteCodeItem; fallbackLanguage?: string }) {
+/**
+ * CodeBlock renders a skeleton placeholder until the element is near the
+ * viewport, then swaps in the real syntax-highlighted block.
+ * This avoids doing any DOM / layout work for off-screen code sections on
+ * the initial paint.
+ */
+export const CodeBlock = memo(function CodeBlock({
+  item,
+  fallbackLanguage,
+}: {
+  item: NoteCodeItem
+  fallbackLanguage?: string
+}) {
+  const { ref, inView } = useInView('300px')
   const [copied, setCopied] = useState(false)
   const language = item.language || fallbackLanguage
   const code = item.code ?? ''
 
   const handleCopy = async () => {
-    if (!code || typeof navigator === 'undefined' || !navigator.clipboard) {
-      return
-    }
-
+    if (!code || typeof navigator === 'undefined' || !navigator.clipboard) return
     try {
       await navigator.clipboard.writeText(code)
       setCopied(true)
@@ -140,31 +166,39 @@ export function CodeBlock({ item, fallbackLanguage }: { item: NoteCodeItem; fall
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
-        <div className="min-w-0">
-          {item.title ? <p className="truncate text-sm font-semibold text-slate-100">{item.title}</p> : null}
-          {language ? (
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{language}</p>
-          ) : null}
+    // The outer div holds the ref so IntersectionObserver can track it even
+    // while the skeleton is showing.
+    <div ref={ref}>
+      {!inView ? (
+        <CodeBlockSkeleton />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
+            <div className="min-w-0">
+              {item.title ? <p className="truncate text-sm font-semibold text-slate-100">{item.title}</p> : null}
+              {language ? (
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{language}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-full border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-700"
+              aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <pre className="overflow-x-auto px-4 py-4 text-sm leading-7 text-slate-100">
+            <code>{code}</code>
+          </pre>
         </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="rounded-full border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-700"
-          aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-      <pre className="overflow-x-auto px-4 py-4 text-sm leading-7 text-slate-100">
-        <code>{code}</code>
-      </pre>
+      )}
     </div>
   )
-}
+})
 
-export function ListBlock({ items }: { items: string[] }) {
+export const ListBlock = memo(function ListBlock({ items }: { items: string[] }) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
@@ -175,9 +209,9 @@ export function ListBlock({ items }: { items: string[] }) {
       ))}
     </ul>
   )
-}
+})
 
-export function ConceptBlock({ items }: { items: NoteConceptItem[] }) {
+export const ConceptBlock = memo(function ConceptBlock({ items }: { items: NoteConceptItem[] }) {
   return (
     <div className="grid gap-4">
       {items.map((item, index) => (
@@ -188,13 +222,16 @@ export function ConceptBlock({ items }: { items: NoteConceptItem[] }) {
       ))}
     </div>
   )
-}
+})
 
-export function ExampleBlock({ items }: { items: NoteExampleItem[] }) {
+export const ExampleBlock = memo(function ExampleBlock({ items }: { items: NoteExampleItem[] }) {
   return (
     <div className="space-y-5">
       {items.map((item, index) => (
-        <div key={`${item.title || item.question || 'example'}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-5 py-5">
+        <div
+          key={`${item.title || item.question || 'example'}-${index}`}
+          className="rounded-2xl border border-slate-200 bg-slate-50/70 px-5 py-5"
+        >
           {item.title ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.title)}</h3> : null}
           {item.question ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.question)}</h3> : null}
           {item.description ? (
@@ -221,9 +258,9 @@ export function ExampleBlock({ items }: { items: NoteExampleItem[] }) {
       ))}
     </div>
   )
-}
+})
 
-export function SectionBlock({
+export const SectionBlock = memo(function SectionBlock({
   id,
   title,
   children,
@@ -240,4 +277,4 @@ export function SectionBlock({
       </SectionShell>
     </section>
   )
-}
+})

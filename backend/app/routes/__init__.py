@@ -5,6 +5,7 @@ from .analytics_routes import track_view
 from .technologies_routes import list_technologies, create_technology, update_technology, delete_technology
 from .notes_routes import get_all_notes, get_note_by_slug, get_note_by_topic
 from .topics_routes import (
+    admin_list_topics_by_technology,
     create_topic,
     delete_topic,
     get_curriculum,
@@ -43,6 +44,7 @@ api_bp.add_url_rule("/topics/<int:topic_id>", view_func=update_topic, methods=["
 api_bp.add_url_rule("/topics/<int:topic_id>", view_func=delete_topic, methods=["DELETE"])
 api_bp.add_url_rule("/topics/<int:parent_id>/children", view_func=get_children, methods=["GET"])
 api_bp.add_url_rule("/topics/technology/<int:technology_id>", view_func=list_topics_by_technology, methods=["GET"])
+api_bp.add_url_rule("/admin/topics/technology/<int:technology_id>", view_func=admin_list_topics_by_technology, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>/note", view_func=get_note_by_topic, methods=["GET"])
 api_bp.add_url_rule("/topics/<int:topic_id>/note-version", view_func=create_note_version_for_topic, methods=["POST"])
 
