@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/Layout'
+import LearnLayout from './components/LearnLayout'
 import About from './pages/About'
 
 import UploadGuide from './pages/admin/guidelines/UploadGuide'
@@ -7,7 +8,8 @@ import SchemaGuide from './pages/admin/guidelines/SchemaGuide'
 import PromptGuide from './pages/admin/guidelines/PromptGuide'
 
 import Home from './pages/Home'
-import NotePage from './pages/NotePage'
+
+import NoteTopicContent from './pages/NoteTopicContent'
 import NotFound from './pages/NotFound'
 import Technologies from './pages/Technologies'
 import Topics from './pages/Topics'
@@ -31,7 +33,17 @@ const router = createBrowserRouter(
 
         { path: 'technologies', element: <Technologies /> },
         { path: 'topics/:tech_slug', element: <Topics /> },
-        { path: 'notes/:slug', element: <NotePage /> },
+
+        // Persistent learning layout — Sidebar stays mounted,
+        // only topic content swaps on navigation
+        {
+          path: 'notes',
+          element: <LearnLayout />,
+          children: [
+            { path: ':slug', element: <NoteTopicContent /> },
+          ],
+        },
+
         { path: 'login', element: <LoginPage /> },
         { path: 'signup', element: <SignupPage /> },
         {

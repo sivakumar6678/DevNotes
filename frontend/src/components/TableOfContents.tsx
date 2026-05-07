@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { hasRenderableContent, noteSections } from './noteContentSchema'
 
 function useActiveSection(sectionIds: string[]) {
@@ -42,7 +42,7 @@ function useActiveSection(sectionIds: string[]) {
   return activeId
 }
 
-export default function TableOfContents({ content = {} }: { content?: Record<string, any> }) {
+const TableOfContents = memo(function TableOfContents({ content = {} }: { content?: Record<string, any> }) {
   const sections = noteSections.filter((section) => hasRenderableContent(section.key, content[section.key]))
 
   const sectionIds = sections.map((s) => s.id)
@@ -80,4 +80,6 @@ export default function TableOfContents({ content = {} }: { content?: Record<str
       </div>
     </aside>
   )
-}
+})
+
+export default TableOfContents

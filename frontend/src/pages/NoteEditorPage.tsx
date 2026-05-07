@@ -348,40 +348,46 @@ export default function NoteEditorPage() {
               </div>
             )}
 
-            {viewMode === 'editor' ? (
-              <section className="ne-pane ne-pane--editor" aria-label="JSON content editor">
-                <textarea
-                  id="json-editor"
-                  value={contentInput}
-                  onChange={(e) => setContentInputs(prev => ({ ...prev, [versionType]: e.target.value }))}
-                  placeholder={PLACEHOLDER_JSON}
-                  spellCheck={false}
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  className={`ne-editor-textarea${hasJsonError && contentInput.trim() ? ' ne-editor-textarea--error' : ''}`}
-                  aria-label="Note JSON content"
-                  aria-describedby={hasJsonError ? 'json-error-msg' : undefined}
-                />
-              </section>
-            ) : (
-              <section className="ne-pane ne-pane--preview" aria-label="Live content preview">
-                <div className="ne-preview-scroll">
-                  {parsedPreview ? (
-                    <NoteContent version={parsedPreview as Record<string, any>} />
-                  ) : hasJsonError && contentInput.trim() ? (
-                    <div className="ne-preview-empty ne-preview-empty--error">
-                      <span aria-hidden="true">⚠</span>
-                      <p>Fix the JSON error to see the preview.</p>
-                    </div>
-                  ) : (
-                    <div className="ne-preview-empty">
-                      <span aria-hidden="true">✦</span>
-                      <p>Start typing valid JSON on the left<br />to see the live preview here.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            <section 
+              className="ne-pane ne-pane--editor" 
+              aria-label="JSON content editor"
+              style={{ display: viewMode === 'editor' ? 'block' : 'none' }}
+            >
+              <textarea
+                id="json-editor"
+                value={contentInput}
+                onChange={(e) => setContentInputs(prev => ({ ...prev, [versionType]: e.target.value }))}
+                placeholder={PLACEHOLDER_JSON}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                className={`ne-editor-textarea${hasJsonError && contentInput.trim() ? ' ne-editor-textarea--error' : ''}`}
+                aria-label="Note JSON content"
+                aria-describedby={hasJsonError ? 'json-error-msg' : undefined}
+              />
+            </section>
+            
+            <section 
+              className="ne-pane ne-pane--preview" 
+              aria-label="Live content preview"
+              style={{ display: viewMode === 'preview' ? 'block' : 'none' }}
+            >
+              <div className="ne-preview-scroll">
+                {parsedPreview ? (
+                  <NoteContent version={parsedPreview as Record<string, any>} />
+                ) : hasJsonError && contentInput.trim() ? (
+                  <div className="ne-preview-empty ne-preview-empty--error">
+                    <span aria-hidden="true">⚠</span>
+                    <p>Fix the JSON error to see the preview.</p>
+                  </div>
+                ) : (
+                  <div className="ne-preview-empty">
+                    <span aria-hidden="true">✦</span>
+                    <p>Start typing valid JSON on the left<br />to see the live preview here.</p>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         )}
       </div>

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { fetchCurriculum, fetchTechnologies } from '../api/curriculum'
+import { useCurriculum } from '../context/CurriculumContext'
+import { preloadNote } from '../hooks/useNote'
 import { InlineLoader } from './Loader'
-import type { CurriculumNode, Technology } from '../types'
+import type { CurriculumNode } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
@@ -12,8 +13,9 @@ function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean 
   ) ?? false
 }
 
-// ─── Tree Item ────────────────────────────────────────────────────────────────
-function TreeItem({
+// ─── Tree Item (memoised — only rerenders if its specific node data or
+//      active state changes) ─────────────────────────────────────────────────
+const TreeItem = memo(function TreeItem({
   node,
   depth,
   activeSlug,
@@ -27,6 +29,11 @@ function TreeItem({
   const hasDescendantActive = !isActive && hasActiveDescendant(node, activeSlug)
   const [open, setOpen] = useState(isActive || hasDescendantActive)
   const hasChildren = node.children.length > 0
+
+  // Auto-expand when a descendant becomes active (e.g. direct URL navigation)
+  useEffect(() => {
+    if (hasDescendantActive && !open) setOpen(true)
+  }, [hasDescendantActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Padding left scaled for hierarchy, ensures click area is consistent
   const pl = ['pl-3', 'pl-6', 'pl-9'][Math.min(depth, 2)]
@@ -49,6 +56,7 @@ function TreeItem({
         {isLeaf ? (
           <NavLink
             to={`/notes/${node.slug}`}
+            onMouseEnter={() => preloadNote(node.slug, 'industry')}
             className={`flex-1 truncate block w-full outline-none ${textSize}`}
             aria-current={isActive ? 'page' : undefined}
           >
@@ -77,55 +85,79 @@ function TreeItem({
       )}
     </li>
   )
-}
+})
 
-// ─── Main Sidebar ─────────────────────────────────────────────────────────────
-export default function Sidebar() {
+// ─── Main Sidebar (memoised — will not rerender unless context data changes) ──
+const Sidebar = memo(function Sidebar() {
   const location = useLocation()
   const activeSlug = location.pathname.split('/').pop() || ''
 
-  const [technologies, setTechnologies] = useState<Technology[]>([])
-  const [activeTechId, setActiveTechId] = useState<number | null>(null)
-  const [tree, setTree] = useState<CurriculumNode[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const {
+    technologies,
+    loadTechnologies,
+    publicTree,
+    publicTreeLoading,
+    loadPublicTree,
+    techError,
+  } = useCurriculum()
 
-  // Load technology list once
-  useEffect(() => {
-    fetchTechnologies()
-      .then((techs) => {
-        const published = techs.filter((t) => t.is_published)
-        setTechnologies(published)
-        if (published.length > 0) setActiveTechId(published[0].id)
-      })
-      .catch(() => setError('Could not load topics.'))
-  }, [])
+  // Local state: which tech is selected in the sidebar
+  const [sidebarTechId, setSidebarTechId] = useState<number | null>(null)
 
-  // Load tree when active tech changes
+  // Load technologies once on mount
   useEffect(() => {
-    if (!activeTechId) return
-    setLoading(true)
-    setError('')
-    fetchCurriculum(activeTechId)
-      .then((nodes) => {
-        setTree(nodes)
-      })
-      .catch(() => setError('Could not load curriculum.'))
-      .finally(() => setLoading(false))
-  }, [activeTechId])
+    loadTechnologies()
+  }, [loadTechnologies])
+
+  // Auto-select the first published technology when technologies load
+  useEffect(() => {
+    if (technologies.length > 0 && sidebarTechId === null) {
+      const published = technologies.filter((t) => t.is_published)
+      if (published.length > 0) {
+        setSidebarTechId(published[0].id)
+      }
+    }
+  }, [technologies, sidebarTechId])
+
+  // Load public tree when sidebar tech changes
+  useEffect(() => {
+    if (sidebarTechId) {
+      loadPublicTree(sidebarTechId)
+    }
+  }, [sidebarTechId, loadPublicTree])
+
+  // Preload the first leaf topic
+  useEffect(() => {
+    if (publicTree.length === 0) return
+    let firstLeaf: CurriculumNode | null = null
+    const findFirst = (list: CurriculumNode[]) => {
+      for (const n of list) {
+        if (firstLeaf) return
+        if (n.node_type === 'subtopic' && n.children.length === 0) {
+          firstLeaf = n
+          return
+        }
+        if (n.children.length > 0) findFirst(n.children)
+      }
+    }
+    findFirst(publicTree)
+    if (firstLeaf) preloadNote((firstLeaf as CurriculumNode).slug, 'industry')
+  }, [publicTree])
+
+  const publishedTechs = technologies.filter((t) => t.is_published)
 
   const nav = (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Technology selector */}
-      {technologies.length > 1 && (
+      {publishedTechs.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {technologies.map((tech) => (
+          {publishedTechs.map((tech) => (
             <button
               key={tech.id}
               type="button"
-              onClick={() => setActiveTechId(tech.id)}
+              onClick={() => setSidebarTechId(tech.id)}
               className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                tech.id === activeTechId
+                tech.id === sidebarTechId
                   ? 'bg-brand-orange text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -138,13 +170,13 @@ export default function Sidebar() {
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
+        {publicTreeLoading ? (
           <div className="flex min-h-[120px] items-center justify-center">
             <InlineLoader label="Loading curriculum navigation" />
           </div>
-        ) : error ? (
-          <p className="text-xs text-red-500">{error}</p>
-        ) : tree.length === 0 ? (
+        ) : techError ? (
+          <p className="text-xs text-red-500">{techError}</p>
+        ) : publicTree.length === 0 ? (
           <div className="py-6 text-center">
             <p className="text-sm text-slate-500">No topics published yet.</p>
             <Link
@@ -156,7 +188,7 @@ export default function Sidebar() {
           </div>
         ) : (
           <ul className="space-y-0.5">
-            {tree.map((node) => (
+            {publicTree.map((node) => (
               <TreeItem key={node.id} node={node} depth={0} activeSlug={activeSlug} />
             ))}
           </ul>
@@ -187,4 +219,6 @@ export default function Sidebar() {
       </aside>
     </>
   )
-}
+})
+
+export default Sidebar

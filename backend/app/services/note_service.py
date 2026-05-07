@@ -220,24 +220,17 @@ class NoteService:
 
     @staticmethod
     def get_note_by_slug_and_version(slug: str, version_type: str = "industry") -> dict:
-        """Return topic details + a single requested version only.
-
-        This is the optimised, payload-minimal alternative to
-        ``get_note_with_versions``.  Only one ``NoteVersion`` row is fetched
-        from the database instead of the entire set.
+        """Return topic details + a single requested version (or fallback).
 
         Args:
             slug:         The note / topic slug.
-            version_type: One of the ``VersionType`` enum values
-                          (``industry``, ``simple``, ``interview``, …).
-                          Defaults to ``"industry"``.
+            version_type: One of the ``VersionType`` enum values. Defaults to ``"industry"``.
 
         Returns:
-            A dict with keys ``topic``, ``version``, and ``content``.
+            A dict with keys ``topic``, ``title``, ``version``, ``content``, ``fallback``, and ``available_versions``.
 
         Raises:
-            NotFoundError: When the note slug or the requested version is not
-                           found in the database and no demo fallback exists.
+            NotFoundError: When the note slug or no version is found in the database.
         """
         # --- Validate the requested version type early -----------------------
         try:
@@ -251,22 +244,40 @@ class NoteService:
         # --- Resolve the note ------------------------------------------------
         note = Note.query.filter_by(slug=slug).first()
 
+        fallback_priority = ["industry", "interview", "theory", "simple", "revision", "real-time"]
+
         if not note:
             # Fall back to demo notes if available
             demo = DEMO_NOTES.get(slug)
             if demo:
+                available = list(demo.get("versions", {}).keys())
                 content = demo.get("versions", {}).get(requested_vt.value)
+                fallback_occurred = False
+                selected_vt = requested_vt.value
+
+                if content is None:
+                    fallback_occurred = True
+                    selected_vt = None
+                    for fp in fallback_priority:
+                        if fp in available:
+                            selected_vt = fp
+                            content = demo.get("versions", {})[fp]
+                            break
+
                 if content is None:
                     raise NotFoundError(
-                        f"Version '{requested_vt.value}' not found for note '{slug}'."
+                        f"No versions found for demo note '{slug}'."
                     )
                 return {
                     "topic": {
                         "id": None,
                         "name": demo.get("title", slug),
                     },
-                    "version": requested_vt.value,
+                    "title": demo.get("title", slug),
+                    "version": selected_vt,
                     "content": content,
+                    "fallback": fallback_occurred,
+                    "available_versions": available,
                 }
             raise NotFoundError(f"Note '{slug}' not found.")
 
@@ -275,16 +286,25 @@ class NoteService:
         if not topic:
             raise NotFoundError("Associated topic not found.")
 
-        # --- Fetch only the single requested version row ---------------------
-        version = (
-            NoteVersion.query
-            .filter_by(note_id=note.id, version_type=requested_vt)
-            .first()
-        )
+        # --- Fetch all versions ----------------------------------------------
+        versions = NoteVersion.query.filter_by(note_id=note.id).all()
+        versions_map = {v.version_type.value: v.content for v in versions}
+        available_versions = list(versions_map.keys())
 
-        if not version:
+        fallback_occurred = False
+        selected_vt = requested_vt.value
+
+        if selected_vt not in versions_map:
+            fallback_occurred = True
+            selected_vt = None
+            for fp in fallback_priority:
+                if fp in versions_map:
+                    selected_vt = fp
+                    break
+        
+        if not selected_vt:
             raise NotFoundError(
-                f"Version '{requested_vt.value}' not found for note '{slug}'."
+                f"No versions found for note '{slug}'."
             )
 
         return {
@@ -292,8 +312,11 @@ class NoteService:
                 "id": topic.id,
                 "name": topic.name,
             },
-            "version": requested_vt.value,
-            "content": version.content,
+            "title": note.title,
+            "version": selected_vt,
+            "content": versions_map[selected_vt],
+            "fallback": fallback_occurred,
+            "available_versions": available_versions,
         }
 
     @staticmethod

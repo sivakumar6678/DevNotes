@@ -155,4 +155,14 @@ export interface TechnologiesResponse {
   technologies: Technology[]
 }
 
-export interface NoteDetailResponse extends Note {}
+export interface NoteDetailResponse {
+  topic: {
+    id?: number
+    name: string
+  }
+  title: string
+  content: NoteVersion
+  version: string
+  fallback: boolean
+  available_versions: string[]
+}

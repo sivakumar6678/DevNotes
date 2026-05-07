@@ -18,13 +18,12 @@ import {
   createTopic,
   deleteTechnology,
   deleteTopic,
-  fetchCurriculumAdmin,
-  fetchTechnologies,
   updateTechnology,
   updateTopic,
 } from '../api/curriculum'
 import CurriculumTree from '../components/CurriculumTree'
 import { useAuth } from '../context/AuthContext'
+import { useCurriculum } from '../context/CurriculumContext'
 import type { CurriculumNode, Technology } from '../types'
 
 type NodeType = 'section' | 'topic' | 'subtopic'
@@ -111,20 +110,25 @@ export default function CurriculumPage() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
 
-  // Technologies
-  const [technologies, setTechnologies] = useState<Technology[]>([])
-  const [activeTechId, setActiveTechId] = useState<number | null>(null)
-  const [techsLoading, setTechsLoading] = useState(true)
+  // ── Pull shared state from the global curriculum context ───────────────────
+  const {
+    technologies,
+    techsLoading,
+    loadTechnologies,
+    invalidateTechnologies,
+    tree,
+    treeLoading,
+    activeTechId,
+    setActiveTechId,
+    loadTree,
+    invalidateTree,
+    techError,
+    setTechError,
+  } = useCurriculum()
 
-  // Tree
-  const [tree, setTree] = useState<CurriculumNode[]>([])
-  const [treeLoading, setTreeLoading] = useState(false)
-  const [isCreatingTopic, setIsCreatingTopic] = useState(false)
-
-  // Selection (for tree highlight only — editing happens on a dedicated page)
+  // ── Local UI state (not worth persisting globally) ─────────────────────────
   const [selectedNode, setSelectedNode] = useState<CurriculumNode | null>(null)
-
-  // Error / status
+  const [isCreatingTopic, setIsCreatingTopic] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
@@ -137,44 +141,29 @@ export default function CurriculumPage() {
 
   const activeTech = technologies.find((t) => t.id === activeTechId) ?? null
 
-  // ─── Loaders ───────────────────────────────────────────────────────────────
-  async function loadTechnologies(keepActive = false) {
-    try {
-      setTechsLoading(true)
-      const data = await fetchTechnologies()
-      setTechnologies(data)
-      if (!keepActive && data.length > 0) {
-        setActiveTechId((prev) => prev ?? data[0].id)
-      }
-    } catch {
-      setError('Could not load technologies.')
-    } finally {
-      setTechsLoading(false)
+  // ── Merge context-level errors into local error banner ─────────────────────
+  useEffect(() => {
+    if (techError) {
+      setError(techError)
+      setTechError('')
     }
-  }
+  }, [techError, setTechError])
 
-  async function loadTree(techId: number) {
-    setTreeLoading(true)
-    setTree([])
-    setError('')
-    try {
-      const nodes = await fetchCurriculumAdmin(techId)
-      setTree(nodes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load curriculum.')
-    } finally {
-      setTreeLoading(false)
-    }
-  }
-
+  // ── Bootstrap: load technologies once (cache-aware) ────────────────────────
+  // loadTechnologies reads from the in-memory cache first; only hits the
+  // network when the cache is empty or expired (TTL: 5 min).
   useEffect(() => {
     loadTechnologies()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Auto-select the first technology when the list first arrives (or returns
+  // from cache) and no technology is already active.
   useEffect(() => {
-    if (activeTechId) loadTree(activeTechId)
-    else setTree([])
-  }, [activeTechId])
+    if (technologies.length > 0 && activeTechId === null) {
+      setActiveTechId(technologies[0].id)
+    }
+  }, [technologies, activeTechId, setActiveTechId])
 
   // ─── Tech CRUD ─────────────────────────────────────────────────────────────
   async function handleAddTech(e: React.FormEvent) {
@@ -186,6 +175,7 @@ export default function CurriculumPage() {
       const tech = await createTechnology({ name, slug: slugify(name) })
       setTechModalOpen(false)
       setNewTechName('')
+      invalidateTechnologies()
       await loadTechnologies(true)
       setActiveTechId(tech.id)
       flash('Technology created.')
@@ -203,6 +193,7 @@ export default function CurriculumPage() {
       await updateTechnology(techId, { name })
       setRenamingTechId(null)
       setRenameTechValue('')
+      invalidateTechnologies()
       await loadTechnologies(true)
       flash('Technology renamed.')
     } catch (err) {
@@ -215,6 +206,8 @@ export default function CurriculumPage() {
     try {
       await deleteTechnology(tech.id)
       if (activeTechId === tech.id) setActiveTechId(null)
+      invalidateTechnologies()
+      invalidateTree(tech.id)
       await loadTechnologies(true)
       flash('Technology deleted.')
     } catch (err) {
@@ -225,6 +218,7 @@ export default function CurriculumPage() {
   async function handleTogglePublishTech(tech: Technology) {
     try {
       await updateTechnology(tech.id, { is_published: !tech.is_published })
+      invalidateTechnologies()
       await loadTechnologies(true)
       flash(tech.is_published ? 'Technology unpublished.' : 'Technology published.')
     } catch {
@@ -246,7 +240,8 @@ export default function CurriculumPage() {
         node_type: nodeType,
         sort_order: 0,
       })
-      await loadTree(activeTechId)
+      invalidateTree(activeTechId)
+      await loadTree(activeTechId, true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add node.')
     } finally {
@@ -257,7 +252,10 @@ export default function CurriculumPage() {
   async function handleRename(nodeId: number, newName: string) {
     try {
       await updateTopic(nodeId, { name: newName })
-      if (activeTechId) await loadTree(activeTechId)
+      if (activeTechId) {
+        invalidateTree(activeTechId)
+        await loadTree(activeTechId, true)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rename.')
     }
@@ -267,7 +265,10 @@ export default function CurriculumPage() {
     try {
       await deleteTopic(nodeId)
       if (selectedNode?.id === nodeId) setSelectedNode(null)
-      if (activeTechId) await loadTree(activeTechId)
+      if (activeTechId) {
+        invalidateTree(activeTechId)
+        await loadTree(activeTechId, true)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete.')
     }
@@ -276,7 +277,10 @@ export default function CurriculumPage() {
   async function handleTogglePublishNode(nodeId: number, current: boolean) {
     try {
       await updateTopic(nodeId, { is_published: !current })
-      if (activeTechId) await loadTree(activeTechId)
+      if (activeTechId) {
+        invalidateTree(activeTechId)
+        await loadTree(activeTechId, true)
+      }
     } catch {
       setError('Failed to update publish status.')
     }

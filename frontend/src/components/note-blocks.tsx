@@ -1,7 +1,6 @@
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import type { ReactNode } from 'react'
 import type { NoteCodeItem, NoteConceptItem, NoteExampleItem } from './noteContentSchema'
-import { useInView } from '../hooks/useInView'
 
 // ---------------------------------------------------------------------------
 // Inline helpers (module-level, never re-created)
@@ -81,120 +80,29 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Skeleton shown while a code block is outside the viewport
-// ---------------------------------------------------------------------------
+import { lazy, Suspense } from 'react'
 
-const CodeBlockSkeleton = memo(function CodeBlockSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
-      <div className="flex items-center justify-between border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
-        <div className="h-3 w-24 animate-pulse rounded bg-slate-600/60" />
-      </div>
-      <div className="space-y-2 px-4 py-4">
-        {[80, 60, 70, 50].map((w, i) => (
-          <div key={i} className={`h-3 animate-pulse rounded bg-slate-700/60`} style={{ width: `${w}%` }} />
-        ))}
-      </div>
-    </div>
-  )
-})
+const LazyCodeBlock = lazy(() => import('./CodeBlock'))
 
-// ---------------------------------------------------------------------------
-// SectionShell (internal)
-// ---------------------------------------------------------------------------
-
-const SectionShell = memo(function SectionShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-[1.75rem] border border-slate-200/80 bg-white px-5 py-6 shadow-[0_16px_40px_rgba(15,23,42,0.05)] sm:px-7">
-      {children}
-    </div>
-  )
-})
-
-// ---------------------------------------------------------------------------
-// Exported blocks — all wrapped with React.memo
-// ---------------------------------------------------------------------------
-
-export const HeadingBlock = memo(function HeadingBlock({ id, title }: { id: string; title: string }) {
-  return (
-    <div id={id} className="scroll-mt-32">
-      <h2 className="font-display text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
-    </div>
-  )
-})
-
-export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: string[] }) {
-  return (
-    <div className="space-y-4">
-      {paragraphs.map((paragraph, index) => (
-        <div key={index} className="space-y-4">
-          {renderMarkdownBlocks(paragraph, 'text-base leading-8 text-slate-700 sm:text-[1.05rem]')}
-        </div>
-      ))}
-    </div>
-  )
-})
-
-/**
- * CodeBlock renders a skeleton placeholder until the element is near the
- * viewport, then swaps in the real syntax-highlighted block.
- * This avoids doing any DOM / layout work for off-screen code sections on
- * the initial paint.
- */
-export const CodeBlock = memo(function CodeBlock({
-  item,
-  fallbackLanguage,
-}: {
+export const CodeBlock = memo(function CodeBlockWrapper(props: {
   item: NoteCodeItem
   fallbackLanguage?: string
 }) {
-  const { ref, inView } = useInView('300px')
-  const [copied, setCopied] = useState(false)
-  const language = item.language || fallbackLanguage
-  const code = item.code ?? ''
-
-  const handleCopy = async () => {
-    if (!code || typeof navigator === 'undefined' || !navigator.clipboard) return
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
-    // The outer div holds the ref so IntersectionObserver can track it even
-    // while the skeleton is showing.
-    <div ref={ref}>
-      {!inView ? (
-        <CodeBlockSkeleton />
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
-            <div className="min-w-0">
-              {item.title ? <p className="truncate text-sm font-semibold text-slate-100">{item.title}</p> : null}
-              {language ? (
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{language}</p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="rounded-full border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-700"
-              aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <pre className="overflow-x-auto px-4 py-4 text-sm leading-7 text-slate-100">
-            <code>{code}</code>
-          </pre>
+    <Suspense fallback={
+      <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-[rgba(15,23,42,0.92)] shadow-[0_20px_48px_rgba(15,23,42,0.16)]">
+        <div className="flex items-center justify-between border-b border-slate-700/70 bg-[rgba(30,41,59,0.72)] px-4 py-3">
+          <div className="h-3 w-24 animate-pulse rounded bg-slate-600/60" />
         </div>
-      )}
-    </div>
+        <div className="space-y-2 px-4 py-4">
+          {[80, 60, 70, 50].map((w, i) => (
+            <div key={i} className={`h-3 animate-pulse rounded bg-slate-700/60`} style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      </div>
+    }>
+      <LazyCodeBlock {...props} />
+    </Suspense>
   )
 })
 
@@ -255,6 +163,35 @@ export const ExampleBlock = memo(function ExampleBlock({ items }: { items: NoteE
             </div>
           ) : null}
         </div>
+      ))}
+    </div>
+  )
+})
+
+const SectionShell = memo(function SectionShell({ children }: { children: ReactNode }) {
+  return <div className="group/section">{children}</div>
+})
+
+const HeadingBlock = memo(function HeadingBlock({ id, title }: { id: string; title: string }) {
+  return (
+    <h2
+      id={id}
+      className="scroll-mt-28 font-display text-2xl font-semibold tracking-tight text-slate-900 group-hover/section:text-brand-orange transition-colors"
+    >
+      <a href={`#${id}`} className="hover:underline">
+        {title}
+      </a>
+    </h2>
+  )
+})
+
+export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: string[] }) {
+  return (
+    <div className="space-y-4">
+      {paragraphs.map((p, index) => (
+        <p key={index} className="text-base leading-7 text-slate-700">
+          {renderInlineMarkdown(p)}
+        </p>
       ))}
     </div>
   )
