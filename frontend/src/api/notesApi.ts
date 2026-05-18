@@ -1,4 +1,5 @@
-import { getCache, setCache } from '../utils/cache'
+import { DEFAULT_VERSION } from '../constants'
+import { getCachedNote, setCachedNote } from '../store/noteCache'
 import type { NoteDetailResponse } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -28,15 +29,14 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   return data
 }
 
-export async function getNote(slug: string, version: string = 'industry'): Promise<NoteDetailResponse> {
-  const cacheKey = `note_${slug}_${version}`
-  const cached = getCache<NoteDetailResponse>(cacheKey)
+export async function getNote(slug: string, version: string = DEFAULT_VERSION): Promise<NoteDetailResponse> {
+  const cached = getCachedNote(slug, version)
   if (cached) {
     return cached
   }
 
   const note = await apiFetch(`/api/notes/${encodeURIComponent(slug)}?version=${encodeURIComponent(version)}`)
-  setCache(cacheKey, note)
+  setCachedNote(slug, version, note)
   return note
 }
 
@@ -50,4 +50,3 @@ export async function trackView(topicId: number, versionType: string): Promise<v
     // Intentionally ignore analytics failures.
   }
 }
-

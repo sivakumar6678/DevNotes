@@ -1,10 +1,11 @@
 import { memo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { DEFAULT_VERSION } from '../constants'
 import VersionTabs from '../components/VersionTabs'
 import NoteContent from '../components/NoteContent'
 import CompareMode from '../components/CompareMode'
 import TableOfContents from '../components/TableOfContents'
-import { PrimaryLoader } from '../components/Loader'
+import { InlineLoader } from '../components/Loader'
 import { useNote } from '../hooks/useNote'
 import NotFound from './NotFound'
 
@@ -21,16 +22,7 @@ const NoteTopicContent = memo(function NoteTopicContent() {
 
   const [compareMode, setCompareMode] = useState(false)
   const [compareLeft, setCompareLeft] = useState('simple')
-  const [compareRight, setCompareRight] = useState('industry')
-
-  // Full-page loader — only on initial load with no cached content
-  if (loading && !note) {
-    return (
-      <div className="min-w-0">
-        <PrimaryLoader className="min-h-[60vh]" label="Loading note" />
-      </div>
-    )
-  }
+  const [compareRight, setCompareRight] = useState(DEFAULT_VERSION)
 
   if (error && !note) {
     return (
@@ -42,14 +34,14 @@ const NoteTopicContent = memo(function NoteTopicContent() {
 
   if (!note) {
     return (
-      <div className="min-w-0">
-        <NotFound message="The note you are looking for could not be found." />
+      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-6 py-10 shadow-sm">
+        <InlineLoader label={loading ? 'Loading note' : 'Preparing note'} />
       </div>
     )
   }
 
   const availableVersions = note.available_versions || []
-  const activeVersion = version && availableVersions.includes(version) ? version : (availableVersions[0] ?? 'simple')
+  const activeVersion = version && availableVersions.includes(version) ? version : (availableVersions[0] ?? DEFAULT_VERSION)
   const content = note.content ?? {}
   const breadcrumb = note.topic?.name ? `${note.topic.name} › ${note.title}` : note.title
 
@@ -66,9 +58,8 @@ const NoteTopicContent = memo(function NoteTopicContent() {
 
       <div className={`gap-6 ${compareMode ? 'flex flex-col' : 'grid lg:grid-cols-[minmax(0,1fr)_220px]'}`}>
         {/* Main content */}
-        <div className={`min-w-0 relative ${isTransitioning ? 'opacity-60 transition-opacity duration-200' : ''}`}>
-          {/* Subtle transition indicator */}
-          {isTransitioning && (
+        <div className={`min-w-0 relative transition-opacity duration-200 ${isTransitioning ? 'opacity-70' : 'opacity-100'}`}>
+          {(loading || isTransitioning) && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-brand-orange via-amber-400 to-brand-orange animate-pulse rounded-full z-10" />
           )}
 

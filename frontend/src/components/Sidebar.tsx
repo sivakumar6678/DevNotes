@@ -1,44 +1,70 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useParams } from 'react-router-dom'
+import { fetchCurriculum } from '../api/curriculum'
+import { DEFAULT_VERSION } from '../constants'
+import { curriculumCache } from '../cache/curriculumCache'
 import { useCurriculum } from '../context/CurriculumContext'
 import { preloadNote } from '../hooks/useNote'
 import { InlineLoader } from './Loader'
 import type { CurriculumNode } from '../types'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
   return item.children?.some(
     (child) => child.slug === activeSlug || hasActiveDescendant(child, activeSlug),
   ) ?? false
 }
 
-// ─── Tree Item (memoised — only rerenders if its specific node data or
-//      active state changes) ─────────────────────────────────────────────────
+function treeContainsSlug(nodes: CurriculumNode[], activeSlug: string): boolean {
+  return nodes.some((node) => node.slug === activeSlug || hasActiveDescendant(node, activeSlug))
+}
+
+function findAncestorSlugs(
+  nodes: CurriculumNode[],
+  targetSlug: string,
+  path: string[] = [],
+): string[] {
+  for (const node of nodes) {
+    const nextPath = node.slug ? [...path, node.slug] : path
+
+    if (node.slug === targetSlug) {
+      return path
+    }
+
+    if (node.children.length > 0) {
+      const found = findAncestorSlugs(node.children, targetSlug, nextPath)
+      if (found.length) {
+        return found
+      }
+    }
+  }
+
+  return []
+}
+
+interface TreeItemProps {
+  node: CurriculumNode
+  depth: number
+  activeSlug: string
+  isOpen: boolean
+  isItemOpen: (slug: string) => boolean
+  onToggle: (slug: string) => void
+}
+
 const TreeItem = memo(function TreeItem({
   node,
   depth,
   activeSlug,
-}: {
-  node: CurriculumNode
-  depth: number
-  activeSlug: string
-}) {
+  isOpen,
+  isItemOpen,
+  onToggle,
+}: TreeItemProps) {
   const isLeaf = node.node_type === 'subtopic' && node.children.length === 0
   const isActive = node.slug === activeSlug
-  const hasDescendantActive = !isActive && hasActiveDescendant(node, activeSlug)
-  const [open, setOpen] = useState(isActive || hasDescendantActive)
+  const hasDescendant = !isActive && hasActiveDescendant(node, activeSlug)
   const hasChildren = node.children.length > 0
 
-  // Auto-expand when a descendant becomes active (e.g. direct URL navigation)
-  useEffect(() => {
-    if (hasDescendantActive && !open) setOpen(true)
-  }, [hasDescendantActive]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Padding left scaled for hierarchy, ensures click area is consistent
   const pl = ['pl-3', 'pl-6', 'pl-9'][Math.min(depth, 2)]
-  
-  // Font sizes for hierarchy: Module titles > Topic titles
   const textSize = depth === 0 ? 'text-[0.95rem]' : 'text-[0.90rem]'
   const textWeight = depth === 0 ? 'font-semibold' : 'font-medium'
 
@@ -50,13 +76,12 @@ const TreeItem = memo(function TreeItem({
             ? 'bg-brand-orangeSoft text-brand-orange font-bold shadow-sm ring-1 ring-brand-orange/20'
             : `text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm ${textWeight}`
         }`}
-        onClick={!isLeaf ? () => setOpen((o) => !o) : undefined}
+        onClick={!isLeaf && node.slug ? () => onToggle(node.slug) : undefined}
       >
-        {/* Leaf: link. Branch: expand toggle + name */}
         {isLeaf ? (
           <NavLink
             to={`/notes/${node.slug}`}
-            onMouseEnter={() => preloadNote(node.slug, 'industry')}
+            onMouseEnter={() => preloadNote(node.slug, DEFAULT_VERSION)}
             className={`flex-1 truncate block w-full outline-none ${textSize}`}
             aria-current={isActive ? 'page' : undefined}
           >
@@ -64,7 +89,7 @@ const TreeItem = memo(function TreeItem({
           </NavLink>
         ) : (
           <div className="flex flex-1 items-center gap-1.5 truncate text-left w-full outline-none">
-            {open ? (
+            {isOpen || hasDescendant ? (
               <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
             ) : (
               <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
@@ -76,10 +101,18 @@ const TreeItem = memo(function TreeItem({
         )}
       </div>
 
-      {hasChildren && open && (
+      {hasChildren && (isOpen || hasDescendant) && (
         <ul className="ml-1 mt-1 space-y-1 border-l-2 border-slate-100/80 pl-1">
           {node.children.map((child) => (
-            <TreeItem key={child.id} node={child} depth={depth + 1} activeSlug={activeSlug} />
+            <TreeItem
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              activeSlug={activeSlug}
+              isOpen={child.slug ? isItemOpen(child.slug) : false}
+              isItemOpen={isItemOpen}
+              onToggle={onToggle}
+            />
           ))}
         </ul>
       )}
@@ -87,10 +120,9 @@ const TreeItem = memo(function TreeItem({
   )
 })
 
-// ─── Main Sidebar (memoised — will not rerender unless context data changes) ──
 const Sidebar = memo(function Sidebar() {
-  const location = useLocation()
-  const activeSlug = location.pathname.split('/').pop() || ''
+  const { slug } = useParams()
+  const activeSlug = slug || ''
 
   const {
     technologies,
@@ -99,56 +131,160 @@ const Sidebar = memo(function Sidebar() {
     publicTreeLoading,
     loadPublicTree,
     techError,
+    findTechIdBySlug,
   } = useCurriculum()
 
-  // Local state: which tech is selected in the sidebar
   const [sidebarTechId, setSidebarTechId] = useState<number | null>(null)
+  const [openItems, setOpenItems] = useState<Set<string>>(new Set())
 
-  // Load technologies once on mount
+  const publishedTechs = useMemo(
+    () => technologies.filter((tech) => tech.is_published),
+    [technologies],
+  )
+
   useEffect(() => {
     loadTechnologies()
   }, [loadTechnologies])
 
-  // Auto-select the first published technology when technologies load
   useEffect(() => {
-    if (technologies.length > 0 && sidebarTechId === null) {
-      const published = technologies.filter((t) => t.is_published)
-      if (published.length > 0) {
-        setSidebarTechId(published[0].id)
+    let cancelled = false
+
+    async function syncSidebarTech() {
+      if (publishedTechs.length === 0) {
+        return
+      }
+
+      if (!activeSlug) {
+        if (sidebarTechId === null) {
+          setSidebarTechId(publishedTechs[0].id)
+        }
+        return
+      }
+
+      const knownTechId = findTechIdBySlug(activeSlug)
+      if (knownTechId) {
+        if (!cancelled) {
+          setSidebarTechId((current) => (current === knownTechId ? current : knownTechId))
+        }
+        return
+      }
+
+      for (const tech of publishedTechs) {
+        const cachedTree = curriculumCache.getPublicTree(tech.id)
+        if (cachedTree && treeContainsSlug(cachedTree, activeSlug)) {
+          if (!cancelled) {
+            setSidebarTechId((current) => (current === tech.id ? current : tech.id))
+          }
+          return
+        }
+      }
+
+      for (const tech of publishedTechs) {
+        const nodes = await fetchCurriculum(tech.id)
+        curriculumCache.setPublicTree(tech.id, nodes)
+
+        if (cancelled) {
+          return
+        }
+
+        if (treeContainsSlug(nodes, activeSlug)) {
+          setSidebarTechId((current) => (current === tech.id ? current : tech.id))
+          return
+        }
+      }
+
+      if (!cancelled && sidebarTechId === null) {
+        setSidebarTechId(publishedTechs[0].id)
       }
     }
-  }, [technologies, sidebarTechId])
 
-  // Load public tree when sidebar tech changes
+    void syncSidebarTech()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSlug, findTechIdBySlug, publishedTechs, sidebarTechId])
+
   useEffect(() => {
     if (sidebarTechId) {
       loadPublicTree(sidebarTechId)
     }
   }, [sidebarTechId, loadPublicTree])
 
-  // Preload the first leaf topic
   useEffect(() => {
-    if (publicTree.length === 0) return
-    let firstLeaf: CurriculumNode | null = null
-    const findFirst = (list: CurriculumNode[]) => {
-      for (const n of list) {
-        if (firstLeaf) return
-        if (n.node_type === 'subtopic' && n.children.length === 0) {
-          firstLeaf = n
+    if (publicTree.length === 0) {
+      return
+    }
+
+    let firstLeafSlug: string | null = null
+
+    const findFirstLeaf = (list: CurriculumNode[]) => {
+      for (const node of list) {
+        if (firstLeafSlug) {
           return
         }
-        if (n.children.length > 0) findFirst(n.children)
+
+        if (node.node_type === 'subtopic' && node.children.length === 0) {
+          firstLeafSlug = node.slug
+          return
+        }
+
+        if (node.children.length > 0) {
+          findFirstLeaf(node.children)
+        }
       }
     }
-    findFirst(publicTree)
-    if (firstLeaf) preloadNote((firstLeaf as CurriculumNode).slug, 'industry')
+
+    findFirstLeaf(publicTree)
+
+    if (firstLeafSlug) {
+      preloadNote(firstLeafSlug, DEFAULT_VERSION)
+    }
   }, [publicTree])
 
-  const publishedTechs = technologies.filter((t) => t.is_published)
+  useEffect(() => {
+    if (!activeSlug || publicTree.length === 0) {
+      return
+    }
+
+    const ancestors = findAncestorSlugs(publicTree, activeSlug)
+    if (!ancestors.length) {
+      return
+    }
+
+    setOpenItems((current) => {
+      const next = new Set(current)
+      let changed = false
+
+      ancestors.forEach((ancestor) => {
+        if (!next.has(ancestor)) {
+          next.add(ancestor)
+          changed = true
+        }
+      })
+
+      return changed ? next : current
+    })
+  }, [activeSlug, publicTree])
+
+  const isItemOpen = useCallback((itemSlug: string) => openItems.has(itemSlug), [openItems])
+
+  const handleToggle = useCallback((itemSlug: string) => {
+    setOpenItems((current) => {
+      const next = new Set(current)
+
+      if (next.has(itemSlug)) {
+        next.delete(itemSlug)
+      } else {
+        next.add(itemSlug)
+      }
+
+      return next
+    })
+  }, [])
 
   const nav = (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Technology selector */}
       {publishedTechs.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-1.5">
           {publishedTechs.map((tech) => (
@@ -168,7 +304,6 @@ const Sidebar = memo(function Sidebar() {
         </div>
       )}
 
-      {/* Tree */}
       <div className="flex-1 overflow-y-auto">
         {publicTreeLoading ? (
           <div className="flex min-h-[120px] items-center justify-center">
@@ -189,7 +324,15 @@ const Sidebar = memo(function Sidebar() {
         ) : (
           <ul className="space-y-0.5">
             {publicTree.map((node) => (
-              <TreeItem key={node.id} node={node} depth={0} activeSlug={activeSlug} />
+              <TreeItem
+                key={node.id}
+                node={node}
+                depth={0}
+                activeSlug={activeSlug}
+                isOpen={node.slug ? isItemOpen(node.slug) : false}
+                isItemOpen={isItemOpen}
+                onToggle={handleToggle}
+              />
             ))}
           </ul>
         )}
@@ -199,7 +342,6 @@ const Sidebar = memo(function Sidebar() {
 
   return (
     <>
-      {/* Mobile collapsible */}
       <details className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold text-slate-800">Browse Topics</span>
@@ -208,7 +350,6 @@ const Sidebar = memo(function Sidebar() {
         <div className="border-t border-slate-100 px-4 py-3">{nav}</div>
       </details>
 
-      {/* Desktop sticky sidebar */}
       <aside className="hidden w-[260px] shrink-0 lg:block">
         <div className="sticky top-36 max-h-[calc(100vh-10rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
