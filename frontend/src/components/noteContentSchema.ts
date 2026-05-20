@@ -56,6 +56,29 @@ export function normalizeTextValue(value: unknown): string[] {
   return []
 }
 
+function hasStructuredTextContent(value: unknown): boolean {
+  if (isNonEmptyString(value)) {
+    return true
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => {
+      if (isNonEmptyString(item)) return true
+      if (!item || typeof item !== 'object') return false
+
+      const record = item as Record<string, unknown>
+      return [record.text, record.content, record.description, record.explanation, record.point].some(isNonEmptyString)
+    })
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return [record.text, record.content, record.description, record.explanation, record.point].some(isNonEmptyString)
+  }
+
+  return false
+}
+
 export function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return []
@@ -132,6 +155,9 @@ export function normalizeExamples(value: unknown): NoteExampleItem[] {
 
 export function hasRenderableContent(sectionKey: string, value: unknown): boolean {
   switch (sectionKey) {
+    case 'problem_it_solves':
+    case 'detailed_explanation':
+      return hasStructuredTextContent(value)
     case 'core_concepts':
       return normalizeConcepts(value).length > 0
     case 'syntax':

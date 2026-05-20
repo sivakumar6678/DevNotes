@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTopics } from '../api/api'
+import { DEFAULT_VERSION } from '../constants'
 import { preloadNote } from '../hooks/useNote'
 import { PrimaryLoader } from '../components/Loader'
 import type { Topic } from '../types'
@@ -54,7 +55,7 @@ function LeafList({ topics, navigate }: { topics: Topic[]; navigate: ReturnType<
           <button
             type="button"
             onClick={() => navigate(`/notes/${leaf.slug}`)}
-            onMouseEnter={() => preloadNote(leaf.slug, 'industry')}
+            onMouseEnter={() => preloadNote(leaf.slug, DEFAULT_VERSION)}
             className="group/leaf flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-200 ease-in-out hover:bg-brand-orange/10 hover:border-black hover:shadow-sm"
           >
             <span className="mt-[0.2em] shrink-0 text-[11px] text-brand-border transition-colors group-hover/leaf:text-brand-orange" aria-hidden="true">→</span>
@@ -307,7 +308,7 @@ export default function Topics() {
 
   useEffect(() => {
     if (firstLeafSlug) {
-      preloadNote(firstLeafSlug, 'industry')
+      preloadNote(firstLeafSlug, DEFAULT_VERSION)
     }
   }, [firstLeafSlug])
 

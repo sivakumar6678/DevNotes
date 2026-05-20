@@ -1,5 +1,5 @@
 import { getCache, setCache } from '../utils/cache'
-import type { Technology, Topic, Note } from '../types'
+import type { Technology, Topic } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -70,16 +70,4 @@ export async function getTopics(techSlug: string): Promise<Topic[]> {
 
   setCache(cacheKey, topics)
   return topics
-}
-
-export async function getNote(slug: string, version: string = 'industry'): Promise<Note> {
-  const cacheKey = `note_${slug}_${version}`
-  const cached = getCache<Note>(cacheKey)
-  if (cached) {
-    return cached
-  }
-
-  const note = await apiFetch<Note>(`/api/notes/${encodeURIComponent(slug)}?version=${encodeURIComponent(version)}`)
-  setCache(cacheKey, note)
-  return note
 }

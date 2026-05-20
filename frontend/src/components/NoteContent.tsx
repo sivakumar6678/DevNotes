@@ -5,6 +5,7 @@ import {
   ExampleBlock,
   ListBlock,
   SectionBlock,
+  StructuredTextBlock,
   TextBlock,
 } from './note-blocks'
 import {
@@ -29,6 +30,14 @@ const NoteSection = memo(function NoteSection({
 
   switch (section.kind) {
     case 'text': {
+      if (section.key === 'problem_it_solves' || section.key === 'detailed_explanation') {
+        return (
+          <SectionBlock id={section.id} title={section.title}>
+            <StructuredTextBlock value={value} preferList={section.key === 'problem_it_solves'} />
+          </SectionBlock>
+        )
+      }
+
       const paragraphs = normalizeTextValue(value)
       if (!paragraphs.length) return null
       return (

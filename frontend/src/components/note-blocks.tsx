@@ -30,11 +30,17 @@ function renderInlineMarkdown(text: string): ReactNode[] {
   })
 }
 
-function renderMarkdownBlocks(content: string, paragraphClassName: string) {
+type MarkdownBlock =
+  | { type: 'paragraph'; content: string }
+  | { type: 'unordered-list'; items: string[] }
+  | { type: 'ordered-list'; items: string[] }
+
+function parseMarkdownBlocks(content: string, allowOrderedLists = false): MarkdownBlock[] {
   const lines = content.split('\n')
-  const blocks: Array<{ type: 'paragraph'; content: string } | { type: 'list'; items: string[] }> = []
+  const blocks: MarkdownBlock[] = []
   let paragraphBuffer: string[] = []
   let listBuffer: string[] = []
+  let listType: 'unordered-list' | 'ordered-list' | null = null
 
   const flushParagraph = () => {
     const text = paragraphBuffer.join(' ').trim()
@@ -43,15 +49,24 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
   }
 
   const flushList = () => {
-    if (listBuffer.length) blocks.push({ type: 'list', items: listBuffer })
+    if (listBuffer.length && listType) blocks.push({ type: listType, items: listBuffer })
     listBuffer = []
+    listType = null
+  }
+
+  const addListItem = (type: 'unordered-list' | 'ordered-list', item: string) => {
+    if (listType && listType !== type) flushList()
+    listType = type
+    listBuffer.push(item)
   }
 
   lines.forEach((rawLine) => {
     const line = rawLine.trim()
     if (!line) { flushParagraph(); flushList(); return }
-    const listMatch = line.match(/^[-*]\s+(.+)$/)
-    if (listMatch) { flushParagraph(); listBuffer.push(listMatch[1].trim()); return }
+    const unorderedMatch = line.match(/^[-*]\s+(.+)$/)
+    if (unorderedMatch) { flushParagraph(); addListItem('unordered-list', unorderedMatch[1].trim()); return }
+    const orderedMatch = allowOrderedLists ? line.match(/^\d+[.)]\s+(.+)$/) : null
+    if (orderedMatch) { flushParagraph(); addListItem('ordered-list', orderedMatch[1].trim()); return }
     flushList()
     paragraphBuffer.push(line)
   })
@@ -59,18 +74,43 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
   flushParagraph()
   flushList()
 
+  return blocks
+}
+
+function renderPointList(items: string[], ordered = false) {
+  if (ordered) {
+    return (
+      <ol className="list-decimal space-y-2.5 pl-6 text-base leading-8 text-slate-700 sm:text-[1.02rem]">
+        {items.map((item, index) => (
+          <li key={index} className="pl-1">
+            {renderInlineMarkdown(item)}
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  return (
+    <ul className="space-y-2.5 pl-1">
+      {items.map((item, index) => (
+        <li key={index} className="flex items-start gap-3">
+          <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-orange" aria-hidden="true" />
+          <span className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">{renderInlineMarkdown(item)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function renderMarkdownBlocks(content: string, paragraphClassName: string, allowOrderedLists = false) {
+  const blocks = parseMarkdownBlocks(content, allowOrderedLists)
+
   return blocks.map((block, index) => {
-    if (block.type === 'list') {
-      return (
-        <ul key={index} className="space-y-2.5 pl-1">
-          {block.items.map((item, itemIndex) => (
-            <li key={itemIndex} className="flex items-start gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-orange" aria-hidden="true" />
-              <span className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">{renderInlineMarkdown(item)}</span>
-            </li>
-          ))}
-        </ul>
-      )
+    if (block.type === 'unordered-list') {
+      return <div key={index}>{renderPointList(block.items)}</div>
+    }
+    if (block.type === 'ordered-list') {
+      return <div key={index}>{renderPointList(block.items, true)}</div>
     }
     return (
       <p key={index} className={paragraphClassName}>
@@ -78,6 +118,27 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string) {
       </p>
     )
   })
+}
+
+function getPlainTextValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value.trim() || null
+  }
+
+  if (value && typeof value === 'object') {
+    const item = value as Record<string, unknown>
+    const text = item.text ?? item.content ?? item.description ?? item.explanation ?? item.point
+    if (typeof text === 'string') return text.trim() || null
+  }
+
+  return null
+}
+
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
 }
 
 import { lazy, Suspense } from 'react'
@@ -191,6 +252,50 @@ export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: s
       {paragraphs.map((p, index) => (
         <p key={index} className="text-base leading-7 text-slate-700">
           {renderInlineMarkdown(p)}
+        </p>
+      ))}
+    </div>
+  )
+})
+
+export const StructuredTextBlock = memo(function StructuredTextBlock({
+  value,
+  preferList = false,
+}: {
+  value: unknown
+  preferList?: boolean
+}) {
+  if (Array.isArray(value)) {
+    const items = value.map(getPlainTextValue).filter((item): item is string => Boolean(item))
+    return items.length ? <div className="space-y-4">{renderPointList(items)}</div> : null
+  }
+
+  const text = getPlainTextValue(value)
+  if (!text) return null
+
+  const blocks = parseMarkdownBlocks(text, true)
+  const hasExplicitStructure = blocks.some((block) => block.type !== 'paragraph')
+
+  if (hasExplicitStructure) {
+    return (
+      <div className="space-y-4">
+        {renderMarkdownBlocks(text, 'text-base leading-8 text-slate-700 sm:text-[1.02rem]', true)}
+      </div>
+    )
+  }
+
+  if (preferList) {
+    const sentences = splitSentences(text)
+    if (sentences.length > 1) {
+      return <div className="space-y-4">{renderPointList(sentences)}</div>
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {text.split(/\n{2,}/).map((paragraph, index) => (
+        <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
+          {renderInlineMarkdown(paragraph.trim())}
         </p>
       ))}
     </div>
