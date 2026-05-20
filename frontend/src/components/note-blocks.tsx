@@ -258,6 +258,93 @@ export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: s
   )
 })
 
+interface StructuredBlock {
+  type: 'paragraph' | 'unordered-list' | 'ordered-list'
+  items: string[]
+}
+
+function parseStructuredText(text: string): StructuredBlock[] {
+  const lines = text.split(/\r?\n/)
+  const blocks: StructuredBlock[] = []
+  
+  let currentListType: 'unordered-list' | 'ordered-list' | null = null
+  let currentListItems: string[] = []
+  let consecutiveTextLines: string[] = []
+
+  const flushList = () => {
+    if (currentListType && currentListItems.length > 0) {
+      blocks.push({
+        type: currentListType,
+        items: [...currentListItems],
+      })
+      currentListItems = []
+      currentListType = null
+    }
+  }
+
+  const flushTextLines = () => {
+    if (consecutiveTextLines.length > 0) {
+      if (consecutiveTextLines.length > 1) {
+        // Render multiple consecutive lines as a bulleted points list!
+        blocks.push({
+          type: 'unordered-list',
+          items: [...consecutiveTextLines],
+        })
+      } else {
+        // Render a single line as a standard paragraph block
+        blocks.push({
+          type: 'paragraph',
+          items: [consecutiveTextLines[0]],
+        })
+      }
+      consecutiveTextLines = []
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]
+    const trimmed = rawLine.trim()
+
+    if (trimmed === '') {
+      flushList()
+      flushTextLines()
+      continue
+    }
+
+    // Unordered list item: starts with -, *, •, + followed by space(s)
+    const unorderedMatch = trimmed.match(/^[-*•+]\s+(.+)$/)
+    if (unorderedMatch) {
+      flushTextLines()
+      if (currentListType !== 'unordered-list') {
+        flushList()
+        currentListType = 'unordered-list'
+      }
+      currentListItems.push(unorderedMatch[1].trim())
+      continue
+    }
+
+    // Ordered list item: starts with digit(s) followed by . or ) and space(s)
+    const orderedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/)
+    if (orderedMatch) {
+      flushTextLines()
+      if (currentListType !== 'ordered-list') {
+        flushList()
+        currentListType = 'ordered-list'
+      }
+      currentListItems.push(orderedMatch[2].trim())
+      continue
+    }
+
+    // Normal paragraph line
+    flushList()
+    consecutiveTextLines.push(trimmed)
+  }
+
+  flushList()
+  flushTextLines()
+  return blocks
+}
+
 export const StructuredTextBlock = memo(function StructuredTextBlock({
   value,
   preferList = false,
@@ -267,24 +354,38 @@ export const StructuredTextBlock = memo(function StructuredTextBlock({
 }) {
   if (Array.isArray(value)) {
     const items = value.map(getPlainTextValue).filter((item): item is string => Boolean(item))
-    return items.length ? <div className="space-y-4">{renderPointList(items)}</div> : null
+    if (!items.length) return null
+
+    if (preferList) {
+      return <div className="space-y-4">{renderPointList(items)}</div>
+    } else {
+      return (
+        <div className="space-y-4">
+          {items.flatMap((item) => parseStructuredText(item)).map((block, index) => {
+            if (block.type === 'unordered-list') {
+              return <div key={index}>{renderPointList(block.items)}</div>
+            }
+            if (block.type === 'ordered-list') {
+              return <div key={index}>{renderPointList(block.items, true)}</div>
+            }
+            return (
+              <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
+                {renderInlineMarkdown(block.items[0])}
+              </p>
+            )
+          })}
+        </div>
+      )
+    }
   }
 
   const text = getPlainTextValue(value)
   if (!text) return null
 
-  const blocks = parseMarkdownBlocks(text, true)
-  const hasExplicitStructure = blocks.some((block) => block.type !== 'paragraph')
+  const blocks = parseStructuredText(text)
+  const hasExplicitList = blocks.some((block) => block.type === 'unordered-list' || block.type === 'ordered-list')
 
-  if (hasExplicitStructure) {
-    return (
-      <div className="space-y-4">
-        {renderMarkdownBlocks(text, 'text-base leading-8 text-slate-700 sm:text-[1.02rem]', true)}
-      </div>
-    )
-  }
-
-  if (preferList) {
+  if (preferList && !hasExplicitList) {
     const sentences = splitSentences(text)
     if (sentences.length > 1) {
       return <div className="space-y-4">{renderPointList(sentences)}</div>
@@ -293,11 +394,19 @@ export const StructuredTextBlock = memo(function StructuredTextBlock({
 
   return (
     <div className="space-y-4">
-      {text.split(/\n{2,}/).map((paragraph, index) => (
-        <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-          {renderInlineMarkdown(paragraph.trim())}
-        </p>
-      ))}
+      {blocks.map((block, index) => {
+        if (block.type === 'unordered-list') {
+          return <div key={index}>{renderPointList(block.items)}</div>
+        }
+        if (block.type === 'ordered-list') {
+          return <div key={index}>{renderPointList(block.items, true)}</div>
+        }
+        return (
+          <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
+            {renderInlineMarkdown(block.items[0])}
+          </p>
+        )
+      })}
     </div>
   )
 })

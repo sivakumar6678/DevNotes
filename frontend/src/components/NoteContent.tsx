@@ -33,7 +33,7 @@ const NoteSection = memo(function NoteSection({
       if (section.key === 'problem_it_solves' || section.key === 'detailed_explanation') {
         return (
           <SectionBlock id={section.id} title={section.title}>
-            <StructuredTextBlock value={value} preferList={section.key === 'problem_it_solves'} />
+            <StructuredTextBlock value={value} preferList={true} />
           </SectionBlock>
         )
       }
