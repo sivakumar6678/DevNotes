@@ -6,8 +6,8 @@ import {
   ListBlock,
   SectionBlock,
   StructuredTextBlock,
-  TextBlock,
 } from './note-blocks'
+import { RichContentRenderer } from './renderers/RichContentRenderer'
 import {
   hasRenderableContent,
   noteSections,
@@ -15,9 +15,10 @@ import {
   normalizeConcepts,
   normalizeExamples,
   normalizeStringList,
-  normalizeTextValue,
 } from './noteContentSchema'
 import type { NoteSection } from './noteContentSchema'
+import { normalizeNoteVersion } from '../utils/contentNormalizer'
+import type { RichContent, FieldContent } from '../types/richContent'
 
 const NoteSection = memo(function NoteSection({
   section,
@@ -30,19 +31,29 @@ const NoteSection = memo(function NoteSection({
 
   switch (section.kind) {
     case 'text': {
-      if (section.key === 'problem_it_solves' || section.key === 'detailed_explanation') {
+      if (value && typeof value === 'object' && (value as Record<string, unknown>).type === 'rich') {
         return (
           <SectionBlock id={section.id} title={section.title}>
-            <StructuredTextBlock value={value} preferList={true} />
+            <RichContentRenderer content={value as RichContent} />
           </SectionBlock>
         )
       }
 
-      const paragraphs = normalizeTextValue(value)
-      if (!paragraphs.length) return null
+      if (
+        section.key === 'problem_it_solves' ||
+        section.key === 'detailed_explanation' ||
+        section.key === 'definition'
+      ) {
+        return (
+          <SectionBlock id={section.id} title={section.title}>
+            <RichContentRenderer content={value as FieldContent} />
+          </SectionBlock>
+        )
+      }
+
       return (
         <SectionBlock id={section.id} title={section.title}>
-          <TextBlock paragraphs={paragraphs} />
+          <StructuredTextBlock value={value} preferList={true} />
         </SectionBlock>
       )
     }
@@ -96,10 +107,26 @@ const NoteSection = memo(function NoteSection({
 // ---------------------------------------------------------------------------
 
 export default memo(function NoteContent({ version = {} }: { version?: Record<string, any> }) {
-  const allSections = useMemo(
-    () => noteSections.filter((s) => hasRenderableContent(s.key, version[s.key])),
-    [JSON.stringify(version)],
-  )
+  const normalizedVersion = useMemo(() => normalizeNoteVersion(version), [JSON.stringify(version)])
+
+  const allSections = useMemo(() => {
+    // 1. Filter known sections
+    const knownSections = noteSections.filter((s) => hasRenderableContent(s.key, (normalizedVersion as Record<string, unknown>)[s.key]))
+
+    // 2. Identify unknown/dynamic sections
+    const systemKeys = new Set(['id', '_id', 'topic_id', 'created_at', 'updated_at', 'version', 'title', 'metadata', 'status', 'type', 'fallback', 'available_versions'])
+    const dynamicSections = Object.keys(normalizedVersion)
+      .filter((key) => !noteSections.some((s) => s.key === key) && !systemKeys.has(key))
+      .filter((key) => hasRenderableContent(key, (normalizedVersion as Record<string, unknown>)[key]))
+      .map((key) => ({
+        key,
+        title: key.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        id: key.replace(/_/g, '-'),
+        kind: 'text' as const,
+      }))
+
+    return [...knownSections, ...dynamicSections]
+  }, [normalizedVersion])
 
   if (!allSections.length) {
     return (
@@ -116,7 +143,7 @@ export default memo(function NoteContent({ version = {} }: { version?: Record<st
   return (
     <article className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6">
       {allSections.map((section) => (
-        <NoteSection key={section.key} section={section} version={version} />
+        <NoteSection key={section.key} section={section} version={normalizedVersion as Record<string, unknown>} />
       ))}
     </article>
   )

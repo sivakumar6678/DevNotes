@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import type { ReactNode } from 'react'
 import type { NoteCodeItem, NoteConceptItem, NoteExampleItem } from './noteContentSchema'
+import { RichContentRenderer } from './renderers/RichContentRenderer'
 
 // ---------------------------------------------------------------------------
 // Inline helpers (module-level, never re-created)
@@ -30,16 +31,32 @@ function renderInlineMarkdown(text: string): ReactNode[] {
   })
 }
 
+function getIndentLevel(line: string): number {
+  const match = line.match(/^(\s+)/)
+  return match ? match[1].length : 0
+}
+
+interface ListItem {
+  text: string
+  indent: number
+}
+
 type MarkdownBlock =
   | { type: 'paragraph'; content: string }
-  | { type: 'unordered-list'; items: string[] }
-  | { type: 'ordered-list'; items: string[] }
+  | { type: 'unordered-list'; items: ListItem[] }
+  | { type: 'ordered-list'; items: ListItem[] }
+  | { type: 'flow-diagram'; items: ListItem[] }
+
+function isFlowLine(line: string): boolean {
+  return line.includes('→') || line.includes('=>') || line.includes('->')
+}
 
 function parseMarkdownBlocks(content: string, allowOrderedLists = false): MarkdownBlock[] {
   const lines = content.split('\n')
   const blocks: MarkdownBlock[] = []
   let paragraphBuffer: string[] = []
-  let listBuffer: string[] = []
+  let listBuffer: ListItem[] = []
+  let flowBuffer: ListItem[] = []
   let listType: 'unordered-list' | 'ordered-list' | null = null
 
   const flushParagraph = () => {
@@ -54,36 +71,65 @@ function parseMarkdownBlocks(content: string, allowOrderedLists = false): Markdo
     listType = null
   }
 
-  const addListItem = (type: 'unordered-list' | 'ordered-list', item: string) => {
+  const flushFlow = () => {
+    if (flowBuffer.length) blocks.push({ type: 'flow-diagram', items: flowBuffer })
+    flowBuffer = []
+  }
+
+  const addListItem = (type: 'unordered-list' | 'ordered-list', item: string, indent: number) => {
     if (listType && listType !== type) flushList()
     listType = type
-    listBuffer.push(item)
+    listBuffer.push({ text: item, indent })
   }
 
   lines.forEach((rawLine) => {
+    if (!rawLine.trim()) { flushParagraph(); flushList(); flushFlow(); return }
+    
+    const indent = getIndentLevel(rawLine)
     const line = rawLine.trim()
-    if (!line) { flushParagraph(); flushList(); return }
-    const unorderedMatch = line.match(/^[-*]\s+(.+)$/)
-    if (unorderedMatch) { flushParagraph(); addListItem('unordered-list', unorderedMatch[1].trim()); return }
+
+    if (isFlowLine(rawLine)) {
+      flushParagraph()
+      flushList()
+      flowBuffer.push({ text: line, indent })
+      return
+    } else {
+      flushFlow()
+    }
+
+    const unorderedMatch = line.match(/^[-*•+]\s+(.+)$/)
+    if (unorderedMatch) { flushParagraph(); addListItem('unordered-list', unorderedMatch[1].trim(), indent); return }
+    
     const orderedMatch = allowOrderedLists ? line.match(/^\d+[.)]\s+(.+)$/) : null
-    if (orderedMatch) { flushParagraph(); addListItem('ordered-list', orderedMatch[1].trim()); return }
+    if (orderedMatch) { flushParagraph(); addListItem('ordered-list', orderedMatch[1].trim(), indent); return }
+    
+    if (listType && indent > 0) {
+      // Continuation of a list item or a nested list without bullet
+      listBuffer.push({ text: line, indent })
+      return
+    }
+
     flushList()
     paragraphBuffer.push(line)
   })
 
   flushParagraph()
   flushList()
+  flushFlow()
 
   return blocks
 }
 
-function renderPointList(items: string[], ordered = false) {
+function renderPointList(items: ListItem[], ordered = false) {
+  if (items.length === 0) return null;
+  const minIndent = Math.min(...items.map(i => i.indent));
+  
   if (ordered) {
     return (
       <ol className="list-decimal space-y-2.5 pl-6 text-base leading-8 text-slate-700 sm:text-[1.02rem]">
         {items.map((item, index) => (
-          <li key={index} className="pl-1">
-            {renderInlineMarkdown(item)}
+          <li key={index} className="pl-1" style={{ marginLeft: `${Math.max(0, item.indent - minIndent) * 0.75}rem` }}>
+            {renderInlineMarkdown(item.text)}
           </li>
         ))}
       </ol>
@@ -93,12 +139,30 @@ function renderPointList(items: string[], ordered = false) {
   return (
     <ul className="space-y-2.5 pl-1">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3">
+        <li key={index} className="flex items-start gap-3" style={{ marginLeft: `${Math.max(0, item.indent - minIndent) * 0.75}rem` }}>
           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-orange" aria-hidden="true" />
-          <span className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">{renderInlineMarkdown(item)}</span>
+          <span className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">{renderInlineMarkdown(item.text)}</span>
         </li>
       ))}
     </ul>
+  )
+}
+
+function renderFlowDiagram(items: ListItem[]) {
+  if (items.length === 0) return null;
+  const minIndent = Math.min(...items.map(i => i.indent));
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 font-mono text-sm text-slate-700">
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div key={index} className="flex items-center gap-2" style={{ marginLeft: `${Math.max(0, item.indent - minIndent) * 1}rem` }}>
+            <span className="text-brand-orange/70">▶</span>
+            <span>{renderInlineMarkdown(item.text)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -111,6 +175,9 @@ function renderMarkdownBlocks(content: string, paragraphClassName: string, allow
     }
     if (block.type === 'ordered-list') {
       return <div key={index}>{renderPointList(block.items, true)}</div>
+    }
+    if (block.type === 'flow-diagram') {
+      return <div key={index} className="my-4">{renderFlowDiagram(block.items)}</div>
     }
     return (
       <p key={index} className={paragraphClassName}>
@@ -186,7 +253,15 @@ export const ConceptBlock = memo(function ConceptBlock({ items }: { items: NoteC
       {items.map((item, index) => (
         <div key={`${item.name || 'concept'}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-5 py-4">
           {item.name ? <h3 className="text-base font-semibold text-slate-950">{renderInlineMarkdown(item.name)}</h3> : null}
-          {item.explanation ? <p className="mt-2 text-base leading-7 text-slate-700">{renderInlineMarkdown(item.explanation)}</p> : null}
+          {item.explanation ? (
+            <div className="mt-3 space-y-4">
+              {typeof item.explanation === 'object' && item.explanation !== null && (item.explanation as any).type === 'rich' ? (
+                <RichContentRenderer content={item.explanation as any} />
+              ) : (
+                renderMarkdownBlocks(item.explanation as string, 'text-base leading-7 text-slate-700')
+              )}
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -205,12 +280,20 @@ export const ExampleBlock = memo(function ExampleBlock({ items }: { items: NoteE
           {item.question ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.question)}</h3> : null}
           {item.description ? (
             <div className="mt-3 space-y-4">
-              {renderMarkdownBlocks(item.description, 'text-base leading-7 text-slate-700')}
+              {typeof item.description === 'object' && item.description !== null && (item.description as any).type === 'rich' ? (
+                <RichContentRenderer content={item.description as any} />
+              ) : (
+                renderMarkdownBlocks(item.description as string, 'text-base leading-7 text-slate-700')
+              )}
             </div>
           ) : null}
           {item.answer ? (
             <div className="mt-3 space-y-4">
-              {renderMarkdownBlocks(item.answer, 'text-base leading-7 text-slate-700')}
+              {typeof item.answer === 'object' && item.answer !== null && (item.answer as any).type === 'rich' ? (
+                <RichContentRenderer content={item.answer as any} />
+              ) : (
+                renderMarkdownBlocks(item.answer as string, 'text-base leading-7 text-slate-700')
+              )}
             </div>
           ) : null}
           {item.code ? (
@@ -220,7 +303,11 @@ export const ExampleBlock = memo(function ExampleBlock({ items }: { items: NoteE
           ) : null}
           {item.explanation ? (
             <div className="mt-4 space-y-3">
-              {renderMarkdownBlocks(item.explanation, 'text-sm leading-7 text-slate-600')}
+              {typeof item.explanation === 'object' && item.explanation !== null && (item.explanation as any).type === 'rich' ? (
+                <RichContentRenderer content={item.explanation as any} />
+              ) : (
+                renderMarkdownBlocks(item.explanation as string, 'text-sm leading-7 text-slate-600')
+              )}
             </div>
           ) : null}
         </div>
@@ -258,93 +345,7 @@ export const TextBlock = memo(function TextBlock({ paragraphs }: { paragraphs: s
   )
 })
 
-interface StructuredBlock {
-  type: 'paragraph' | 'unordered-list' | 'ordered-list'
-  items: string[]
-}
-
-function parseStructuredText(text: string): StructuredBlock[] {
-  const lines = text.split(/\r?\n/)
-  const blocks: StructuredBlock[] = []
-  
-  let currentListType: 'unordered-list' | 'ordered-list' | null = null
-  let currentListItems: string[] = []
-  let consecutiveTextLines: string[] = []
-
-  const flushList = () => {
-    if (currentListType && currentListItems.length > 0) {
-      blocks.push({
-        type: currentListType,
-        items: [...currentListItems],
-      })
-      currentListItems = []
-      currentListType = null
-    }
-  }
-
-  const flushTextLines = () => {
-    if (consecutiveTextLines.length > 0) {
-      if (consecutiveTextLines.length > 1) {
-        // Render multiple consecutive lines as a bulleted points list!
-        blocks.push({
-          type: 'unordered-list',
-          items: [...consecutiveTextLines],
-        })
-      } else {
-        // Render a single line as a standard paragraph block
-        blocks.push({
-          type: 'paragraph',
-          items: [consecutiveTextLines[0]],
-        })
-      }
-      consecutiveTextLines = []
-    }
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]
-    const trimmed = rawLine.trim()
-
-    if (trimmed === '') {
-      flushList()
-      flushTextLines()
-      continue
-    }
-
-    // Unordered list item: starts with -, *, •, + followed by space(s)
-    const unorderedMatch = trimmed.match(/^[-*•+]\s+(.+)$/)
-    if (unorderedMatch) {
-      flushTextLines()
-      if (currentListType !== 'unordered-list') {
-        flushList()
-        currentListType = 'unordered-list'
-      }
-      currentListItems.push(unorderedMatch[1].trim())
-      continue
-    }
-
-    // Ordered list item: starts with digit(s) followed by . or ) and space(s)
-    const orderedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/)
-    if (orderedMatch) {
-      flushTextLines()
-      if (currentListType !== 'ordered-list') {
-        flushList()
-        currentListType = 'ordered-list'
-      }
-      currentListItems.push(orderedMatch[2].trim())
-      continue
-    }
-
-    // Normal paragraph line
-    flushList()
-    consecutiveTextLines.push(trimmed)
-  }
-
-  flushList()
-  flushTextLines()
-  return blocks
-}
-
+// Replace parseStructuredText to use our new robust parser
 export const StructuredTextBlock = memo(function StructuredTextBlock({
   value,
   preferList = false,
@@ -357,23 +358,15 @@ export const StructuredTextBlock = memo(function StructuredTextBlock({
     if (!items.length) return null
 
     if (preferList) {
-      return <div className="space-y-4">{renderPointList(items)}</div>
+      return <div className="space-y-4">{renderPointList(items.map(text => ({ text, indent: 0 })))}</div>
     } else {
       return (
         <div className="space-y-4">
-          {items.flatMap((item) => parseStructuredText(item)).map((block, index) => {
-            if (block.type === 'unordered-list') {
-              return <div key={index}>{renderPointList(block.items)}</div>
-            }
-            if (block.type === 'ordered-list') {
-              return <div key={index}>{renderPointList(block.items, true)}</div>
-            }
-            return (
-              <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-                {renderInlineMarkdown(block.items[0])}
-              </p>
-            )
-          })}
+          {items.map((item, index) => (
+            <div key={index} className="space-y-4">
+              {renderMarkdownBlocks(item, 'text-base leading-8 text-slate-700 sm:text-[1.02rem]', true)}
+            </div>
+          ))}
         </div>
       )
     }
@@ -382,31 +375,20 @@ export const StructuredTextBlock = memo(function StructuredTextBlock({
   const text = getPlainTextValue(value)
   if (!text) return null
 
-  const blocks = parseStructuredText(text)
+  // If preferList and not explicitly a list, split into sentences
+  const blocks = parseMarkdownBlocks(text, true)
   const hasExplicitList = blocks.some((block) => block.type === 'unordered-list' || block.type === 'ordered-list')
 
   if (preferList && !hasExplicitList) {
     const sentences = splitSentences(text)
     if (sentences.length > 1) {
-      return <div className="space-y-4">{renderPointList(sentences)}</div>
+      return <div className="space-y-4">{renderPointList(sentences.map(text => ({ text, indent: 0 })))}</div>
     }
   }
 
   return (
     <div className="space-y-4">
-      {blocks.map((block, index) => {
-        if (block.type === 'unordered-list') {
-          return <div key={index}>{renderPointList(block.items)}</div>
-        }
-        if (block.type === 'ordered-list') {
-          return <div key={index}>{renderPointList(block.items, true)}</div>
-        }
-        return (
-          <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-            {renderInlineMarkdown(block.items[0])}
-          </p>
-        )
-      })}
+      {renderMarkdownBlocks(text, 'text-base leading-8 text-slate-700 sm:text-[1.02rem]', true)}
     </div>
   )
 })

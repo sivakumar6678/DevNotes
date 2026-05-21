@@ -5,6 +5,7 @@ import { PrimaryLoader, SavingLoader } from '../components/Loader'
 import NoteContent from '../components/NoteContent'
 import { fetchNoteByTopic, createVersion, updateTopic } from '../api/curriculum'
 import type { TopicNoteData } from '../types'
+import { normalizeNoteVersion } from '../utils/contentNormalizer'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,11 @@ export default function NoteEditorPage() {
       setLoadError('')
       try {
         const data = await fetchNoteByTopic(numericTopicId!)
+        if (data?.versions) {
+          for (const key of Object.keys(data.versions)) {
+            data.versions[key] = normalizeNoteVersion(data.versions[key])
+          }
+        }
         if (!cancelled) setNoteData(data)
       } catch {
         if (!cancelled) setLoadError('Could not load note data for this topic.')
@@ -161,7 +167,20 @@ export default function NoteEditorPage() {
       setSaveMessage(`"${versionType}" version saved successfully.`)
       // Refresh note data to keep version switcher in sync
       const fresh = await fetchNoteByTopic(numericTopicId)
+      if (fresh?.versions) {
+        for (const key of Object.keys(fresh.versions)) {
+          fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
+        }
+      }
       setNoteData(fresh)
+
+      if (fresh?.versions?.[versionType]) {
+        setContentInputs((prev) => ({
+          ...prev,
+          [versionType]: JSON.stringify(fresh.versions[versionType], null, 2)
+        }))
+      }
+
       // Auto-clear success message after 4 s
       setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)
     } catch (err) {
@@ -183,6 +202,11 @@ export default function NoteEditorPage() {
       setSaveStatus('success')
       setSaveMessage(noteData.topic.is_published ? 'Topic unpublished successfully.' : 'Topic published successfully.')
       const fresh = await fetchNoteByTopic(numericTopicId)
+      if (fresh?.versions) {
+        for (const key of Object.keys(fresh.versions)) {
+          fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
+        }
+      }
       setNoteData(fresh)
       setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)
     } catch (err) {

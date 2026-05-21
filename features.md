@@ -196,6 +196,7 @@
 | Capability                | Component                       |
 |---------------------------|---------------------------------|
 | Structured note rendering | `NoteContent.tsx` — 12 section types (definition, problem_it_solves, detailed_explanation, core_concepts, how_it_works, syntax, code_example, practical_example, real_world_example, common_mistakes, best_practices, interview_notes) |
+| Structured list rendering | `note-blocks.tsx` (`StructuredTextBlock` & `parseStructuredText` parser) — parses and renders lists, numbered/bulleted points, arrays, and single/multiple line breaks in `problem_it_solves`, `detailed_explanation`, and `how_it_works` as beautiful ordered/unordered lists or paragraphs |
 | Version switching         | `VersionTabs.tsx` — floating tab bar with icons |
 | Sidebar curriculum tree   | `Sidebar.tsx` — collapsible tree with technology selector |
 | Table of contents         | `TableOfContents.tsx` — auto-generated from note sections |
@@ -207,7 +208,7 @@
 ### Constraints
 
 - Content rendering assumes specific JSON key names (12 hardcoded section types).
-- No Markdown rendering — only plain text, lists, and code blocks.
+- No full Markdown document rendering — only plain text, lists, code blocks, and structured inline tags (`**` and `` ` ``).
 - Code blocks have no syntax highlighting.
 - Sidebar only shows published technologies.
 

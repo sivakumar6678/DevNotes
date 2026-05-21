@@ -17,12 +17,14 @@ export interface Note {
   versions: Record<string, NoteVersion>
 }
 
+import type { RichContent } from './richContent'
+
 export interface NoteVersion {
-  definition?: string
-  problem_it_solves?: string
-  detailed_explanation?: string
-  core_concepts?: Array<{ name?: string; explanation?: string }>
-  how_it_works?: string
+  definition?: string | RichContent
+  problem_it_solves?: string | RichContent
+  detailed_explanation?: string | RichContent
+  core_concepts?: Array<{ name?: string; explanation?: string | RichContent }>
+  how_it_works?: string | RichContent
   syntax?: string | Array<{ title?: string; language?: string; code?: string }>
   code_example?: string | Array<{ title?: string; language?: string; code?: string }>
   practical_example?: string | Array<{ title?: string; description?: string; code?: string; explanation?: string; language?: string }>

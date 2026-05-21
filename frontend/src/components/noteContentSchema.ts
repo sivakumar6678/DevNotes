@@ -1,3 +1,5 @@
+import type { RichContent } from '../types/richContent'
+
 export interface NoteSection {
   key: string
   title: string
@@ -13,17 +15,17 @@ export interface NoteCodeItem {
 
 export interface NoteConceptItem {
   name?: string
-  explanation?: string
+  explanation?: string | RichContent
 }
 
 export interface NoteExampleItem {
   title?: string
-  description?: string
+  description?: string | RichContent
   code?: string
-  explanation?: string
+  explanation?: string | RichContent
   language?: string
   question?: string
-  answer?: string
+  answer?: string | RichContent
 }
 
 export const noteSections: NoteSection[] = [
@@ -56,9 +58,14 @@ export function normalizeTextValue(value: unknown): string[] {
   return []
 }
 
-function hasStructuredTextContent(value: unknown): boolean {
+export function hasStructuredTextContent(value: unknown): boolean {
   if (isNonEmptyString(value)) {
     return true
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (record.type === 'rich') return true
   }
 
   if (Array.isArray(value)) {
@@ -67,13 +74,13 @@ function hasStructuredTextContent(value: unknown): boolean {
       if (!item || typeof item !== 'object') return false
 
       const record = item as Record<string, unknown>
-      return [record.text, record.content, record.description, record.explanation, record.point].some(isNonEmptyString)
+      if (record.type === 'rich') return true
+      return [record.text, record.content, record.description, record.explanation, record.point].some((val) => {
+        if (isNonEmptyString(val)) return true
+        if (val && typeof val === 'object' && (val as any).type === 'rich') return true
+        return false
+      })
     })
-  }
-
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    return [record.text, record.content, record.description, record.explanation, record.point].some(isNonEmptyString)
   }
 
   return false
@@ -96,11 +103,17 @@ export function normalizeConcepts(value: unknown): NoteConceptItem[] {
 
   return value
     .filter((item): item is NoteConceptItem => Boolean(item) && typeof item === 'object')
-    .map((item) => ({
-      name: isNonEmptyString(item.name) ? item.name.trim() : undefined,
-      explanation: isNonEmptyString(item.explanation) ? item.explanation.trim() : undefined,
-    }))
-    .filter((item) => isNonEmptyString(item.name) || isNonEmptyString(item.explanation))
+    .map((item) => {
+      const name = isNonEmptyString(item.name) ? item.name.trim() : undefined
+      let explanation: string | RichContent | undefined
+      if (item.explanation && typeof item.explanation === 'object' && (item.explanation as any).type === 'rich') {
+        explanation = item.explanation
+      } else if (isNonEmptyString(item.explanation)) {
+        explanation = item.explanation.trim()
+      }
+      return { name, explanation }
+    })
+    .filter((item) => isNonEmptyString(item.name) || item.explanation !== undefined)
 }
 
 export function normalizeCodeItems(value: unknown): NoteCodeItem[] {
@@ -127,29 +140,61 @@ export function normalizeExamples(value: unknown): NoteExampleItem[] {
     return [{ description: value.trim() }]
   }
 
+  if (value && typeof value === 'object' && (value as any).type === 'rich') {
+    return [{ description: value as RichContent }]
+  }
+
   if (!Array.isArray(value)) {
     return []
   }
 
   return value
     .filter((item): item is NoteExampleItem => Boolean(item) && typeof item === 'object')
-    .map((item) => ({
-      title: isNonEmptyString(item.title) ? item.title.trim() : undefined,
-      description: isNonEmptyString(item.description) ? item.description.trim() : undefined,
-      code: isNonEmptyString(item.code) ? item.code : undefined,
-      explanation: isNonEmptyString(item.explanation) ? item.explanation.trim() : undefined,
-      language: isNonEmptyString(item.language) ? item.language.trim() : undefined,
-      question: isNonEmptyString(item.question) ? item.question.trim() : undefined,
-      answer: isNonEmptyString(item.answer) ? item.answer.trim() : undefined,
-    }))
+    .map((item) => {
+      const title = isNonEmptyString(item.title) ? item.title.trim() : undefined
+      const code = isNonEmptyString(item.code) ? item.code : undefined
+      const language = isNonEmptyString(item.language) ? item.language.trim() : undefined
+      const question = isNonEmptyString(item.question) ? item.question.trim() : undefined
+
+      let description: string | RichContent | undefined
+      if (item.description && typeof item.description === 'object' && (item.description as any).type === 'rich') {
+        description = item.description
+      } else if (isNonEmptyString(item.description)) {
+        description = item.description.trim()
+      }
+
+      let explanation: string | RichContent | undefined
+      if (item.explanation && typeof item.explanation === 'object' && (item.explanation as any).type === 'rich') {
+        explanation = item.explanation
+      } else if (isNonEmptyString(item.explanation)) {
+        explanation = item.explanation.trim()
+      }
+
+      let answer: string | RichContent | undefined
+      if (item.answer && typeof item.answer === 'object' && (item.answer as any).type === 'rich') {
+        answer = item.answer
+      } else if (isNonEmptyString(item.answer)) {
+        answer = item.answer.trim()
+      }
+
+      return {
+        title,
+        description,
+        code,
+        explanation,
+        language,
+        question,
+        answer,
+      }
+    })
     .filter(
       (item) =>
         isNonEmptyString(item.title) ||
-        isNonEmptyString(item.description) ||
+        item.description !== undefined ||
         isNonEmptyString(item.code) ||
-        isNonEmptyString(item.explanation) ||
+        item.explanation !== undefined ||
         isNonEmptyString(item.question) ||
-        isNonEmptyString(item.answer),
+        item.answer !== undefined,
     )
 }
 
@@ -157,6 +202,7 @@ export function hasRenderableContent(sectionKey: string, value: unknown): boolea
   switch (sectionKey) {
     case 'problem_it_solves':
     case 'detailed_explanation':
+    case 'how_it_works':
       return hasStructuredTextContent(value)
     case 'core_concepts':
       return normalizeConcepts(value).length > 0
@@ -171,6 +217,6 @@ export function hasRenderableContent(sectionKey: string, value: unknown): boolea
     case 'interview_notes':
       return normalizeExamples(value).length > 0
     default:
-      return normalizeTextValue(value).length > 0
+      return hasStructuredTextContent(value)
   }
 }

@@ -4,69 +4,362 @@ import { Copy, Check } from 'lucide-react'
 const PROMPTS: Record<string, { label: string; prompt: string }> = {
   industry: {
     label: 'Industry',
-    prompt: `Convert the following developer note into structured JSON.
+    prompt: `Convert the following developer learning note into structured JSON for the VelStack learning platform.
 
-      ### Schema:
+IMPORTANT:
+The platform already uses a section-based schema.
+Preserve compatibility with the existing structure.
+Do NOT redesign the schema.
 
-      * definition: string
+---
 
-      * problem_it_solves: string
+# JSON Schema
 
-      * detailed_explanation: string
+{
+"definition": "",
+"problem_it_solves": "",
+"detailed_explanation": "",
+"core_concepts": [],
+"how_it_works": "",
+"syntax": [],
+"code_example": [],
+"practical_example": [],
+"real_world_example": [],
+"common_mistakes": [],
+"best_practices": [],
+"interview_notes": []
+}
 
-      * core_concepts: array of objects
+---
 
-        * name
-        * explanation
+# Section Rules
 
-      * how_it_works: string
+## definition
 
-      * syntax: array of objects
+* Short and clear explanation
+* Beginner-friendly
 
-        * title
-        * language
-        * code (ONLY code, no explanation)
+---
 
-      * code_example: array of objects
+## problem_it_solves
 
-        * title
-        * language
-        * code (ONLY code)
+Can be:
 
-      * practical_example: array of objects
+* simple string
+  OR
+* rich structured content if needed
 
-        * title
-        * description
-        * code
-        * explanation
+If content contains:
 
-      * real_world_example: array of objects
+* multiline points
+* flow structures
+* arrows
+* nested explanations
+* diagrams
 
-        * title
-        * description
+then use:
 
-      * common_mistakes: array of strings
+{
+"type": "rich",
+"blocks": []
+}
 
-      * best_practices: array of strings
+Supported block types:
 
-      * interview_notes: array of objects
+* paragraph
+* bullets
+* numbered_list
+* diagram
+* callout
 
-        * question
-        * answer
+---
 
-      ---
+## detailed_explanation
 
-      ### Rules:
+Can be:
 
-      * DO NOT mix text and code in the same field
-      * Code must be in "code" field only
-      * Explanations must be separate
-      * Use arrays wherever multiple items exist
-      * Keep content clean and structured
-      * Do not skip any sections
-      * Maintain clarity and readability
+* plain string
+  OR
+* rich structured content
 
-      Now convert the provided content into this format.`
+Use rich structure when content includes:
+
+* diagrams
+* nested lists
+* multiline formatting
+* architecture flows
+* ASCII structures
+* step-by-step flows
+
+---
+
+## core_concepts
+
+Format:
+
+{
+"name": "",
+"explanation": ""
+}
+
+If explanation contains complex formatting:
+
+* nested lists
+* diagrams
+* multiline flows
+
+then explanation can become:
+
+{
+"type": "rich",
+"blocks": []
+}
+
+---
+
+## syntax
+
+Format:
+
+{
+"title": "",
+"language": "",
+"code": ""
+}
+
+Rules:
+
+* ONLY code inside code field
+* No explanation mixed with code
+
+---
+
+## code_example
+
+Format:
+
+{
+"title": "",
+"language": "",
+"code": ""
+}
+
+---
+
+## practical_example
+
+Format:
+
+{
+"title": "",
+"description": "",
+"code": "",
+"explanation": ""
+}
+
+If explanation contains structured content:
+
+* diagrams
+* nested bullets
+* multiline formatting
+
+allow rich structure.
+
+---
+
+## real_world_example
+
+Format:
+
+{
+"title": "",
+"description": ""
+}
+
+---
+
+## common_mistakes
+
+Array of strings.
+
+---
+
+## best_practices
+
+Array of strings.
+
+---
+
+## interview_notes
+
+Format:
+
+{
+"question": "",
+"answer": ""
+}
+
+Answer may use rich structure if needed.
+
+---
+
+# Rich Block Structure
+
+Use ONLY when necessary.
+
+Example:
+
+{
+"type": "rich",
+"blocks": [
+{
+"type": "paragraph",
+"content": "The browser parses HTML."
+},
+{
+"type": "diagram",
+"content": "HTML\n  ↓\nParser\n  ↓\nDOM Tree"
+},
+{
+"type": "bullets",
+"items": [
+{
+"text": "Browser receives HTML",
+"depth": 0
+},
+{
+"text": "Parser creates DOM",
+"depth": 1
+}
+]
+}
+]
+}
+
+---
+
+# Supported Rich Block Types
+
+## paragraph
+
+{
+"type": "paragraph",
+"content": ""
+}
+
+---
+
+## bullets
+
+{
+"type": "bullets",
+"items": [
+{
+"text": "",
+"depth": 0
+}
+]
+}
+
+Depth:
+
+* 0 = main point
+* 1 = nested point
+* 2 = deep nested point
+
+---
+
+## numbered_list
+
+{
+"type": "numbered_list",
+"items": []
+}
+
+---
+
+## diagram
+
+Use for:
+
+* ASCII diagrams
+* arrow flows
+* architecture structures
+* indentation-based visual flows
+
+Examples:
+
+* →
+* ↓
+* |
+* ├
+* └
+* +---
+* step chains
+
+Format:
+
+{
+"type": "diagram",
+"content": ""
+}
+
+IMPORTANT:
+Preserve ALL whitespace, indentation, arrows, and line breaks exactly.
+
+Never flatten diagram content.
+
+---
+
+## callout
+
+{
+"type": "callout",
+"variant": "tip",
+"content": ""
+}
+
+Variants:
+
+* tip
+* warning
+* info
+
+---
+
+# Global Rules
+
+* Preserve all whitespace and indentation for diagrams
+* Preserve nested list hierarchy
+* Preserve multiline formatting
+* Do NOT flatten structured content into one paragraph
+* Do NOT merge separate blocks together
+* Do NOT remove arrows or flow symbols
+* Keep code separate from explanations
+* Use arrays wherever multiple items exist
+* Maintain readability and clean structure
+* Output ONLY valid JSON
+* Do NOT use markdown backticks
+* Do NOT add explanations outside JSON
+
+---
+
+# Backward Compatibility Rule
+
+IMPORTANT:
+
+If content is simple:
+
+* keep existing plain string structure
+
+Use rich blocks ONLY when content genuinely requires structured formatting.
+
+Do NOT overuse rich blocks unnecessarily.
+
+---
+
+Now convert the provided content into this exact structured format.
+`
   },
   interview: {
     label: 'Interview',
@@ -212,8 +505,8 @@ export default function PromptGuide() {
             key={id}
             type="button"
             className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${activeVersion === id
-                ? 'bg-orange-50 border-brand-orange text-brand-orange'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              ? 'bg-orange-50 border-brand-orange text-brand-orange'
+              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             onClick={() => setActiveVersion(id)}
           >
