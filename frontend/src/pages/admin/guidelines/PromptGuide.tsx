@@ -6,10 +6,12 @@ const PROMPTS: Record<string, { label: string; prompt: string }> = {
     label: 'Industry',
     prompt: `Convert the following developer learning note into structured JSON for the VelStack learning platform.
 
-IMPORTANT:
-The platform already uses a section-based schema.
-Preserve compatibility with the existing structure.
-Do NOT redesign the schema.
+CRITICAL REQUIREMENT:
+You MUST return a COMPLETE, valid JSON object.
+NEVER truncate, cut off, or leave any section unfinished.
+ALL arrays and objects MUST be properly closed.
+ALL strings MUST be properly terminated.
+If content is long, prioritize completeness over detail — shorten explanations before cutting them off.
 
 ---
 
@@ -32,135 +34,137 @@ Do NOT redesign the schema.
 
 ---
 
+# RICH BLOCK DECISION RULE
+
+BEFORE using a rich block, ask:
+Does this content have tables, diagrams, or deeply nested structure that a plain string cannot represent?
+
+YES → use rich block
+NO  → use plain string or plain array
+
+Rich blocks are appropriate for:
+* tables (comparison tables, feature matrices, markdown tables from source)
+* ASCII diagrams and execution flows
+* nested bullet hierarchies (depth > 1)
+* multiline architecture flows with arrows
+* step-by-step structured processes
+
+Rich blocks are NOT needed for:
+* short one-paragraph explanations
+* simple flat bullet lists
+* one-line descriptions
+* single-concept explanations
+* any content that reads fine as plain text
+
+WRONG — unnecessary rich block:
+"definition": { "type": "rich", "blocks": [{ "type": "paragraph", "content": "React is a UI library." }] }
+
+CORRECT — plain string:
+"definition": "React is a UI library."
+
+WRONG — unnecessary rich block for simple list:
+"best_practices": { "type": "rich", "blocks": [{ "type": "bullets", "items": [{"text": "Use const", "depth": 0}] }] }
+
+CORRECT — plain array:
+"best_practices": ["Use const wherever possible"]
+
+---
+
 # Section Rules
 
 ## definition
 
-* Short and clear explanation
-* Beginner-friendly
+* Plain string only
+* One concise sentence — beginner-friendly
+* No rich blocks
 
 ---
 
 ## problem_it_solves
 
-Can be:
+Plain string OR rich object.
 
-* simple string
-  OR
-* rich structured content if needed
+Use rich block ONLY IF the content has tables, diagrams, or deeply nested structure.
+For normal multi-point explanations, use a plain string with line breaks.
 
-If content contains:
-
-* multiline points
-* flow structures
-* arrows
-* nested explanations
-* diagrams
-* tables
-
-then use:
-
+If rich block needed:
 {
 "type": "rich",
 "blocks": []
 }
 
-Supported block types:
-
-* paragraph
-* bullets
-* numbered_list
-* diagram
-* callout
-* table
-
 ---
 
 ## detailed_explanation
 
-Can be:
+Plain string OR rich object.
 
-* plain string
-  OR
-* rich structured content
+PARAGRAPH READABILITY RULE:
+Split long explanations into multiple shorter paragraphs.
+Each paragraph block should cover ONE idea.
+Do NOT write 5+ sentence walls of text in a single paragraph block.
+Keep paragraphs concise enough to read on a phone screen.
 
-Use rich structure when content includes:
+Use rich block when content has:
+* diagrams showing execution flow
+* nested lists with depth > 1
+* comparison tables
+* architecture flows with arrows
+* step-by-step processes with visual structure
 
-* diagrams
-* nested lists
-* multiline formatting
-* architecture flows
-* ASCII structures
-* step-by-step flows
-* tables
+For a plain explanation, use a plain string.
 
 ---
 
 ## core_concepts
 
 Format:
-
 {
 "name": "",
 "explanation": ""
 }
 
-If explanation contains complex formatting:
-
-* nested lists
-* diagrams
-* multiline flows
-* tables
-
-then explanation can become:
-
-{
-"type": "rich",
-"blocks": []
-}
+explanation can be a plain string OR a rich object when it contains tables/diagrams/nested structure.
+Short concept explanations MUST remain plain strings.
 
 ---
+
 ## how_it_works
 
-Can be:
+Plain string OR rich object.
 
-* plain string
-  OR
-* rich structured content
+DIAGRAM USAGE RULE:
+Use a diagram block when the content describes:
+* execution flow (A → B → C)
+* operator precedence ordering
+* short-circuit evaluation path
+* browser rendering pipeline
+* request → response architecture
+* event loop steps
 
-Use rich structure when content includes:
-
-* diagrams
-* architecture flows
-* nested explanations
-* step-by-step execution
-* multiline formatting
-* tables
+Do NOT use diagram for:
+* simple inline mentions of arrows
+* one-step descriptions
+* any flow that reads clearly as a sentence
 
 ---
-
 
 ## syntax
 
 Format:
-
 {
 "title": "",
 "language": "",
 "code": ""
 }
 
-Rules:
-
-* ONLY code inside code field
-* No explanation mixed with code
+ONLY code in the code field. No explanation mixed with code.
 
 ---
 
 ## code_example
 
 Format:
-
 {
 "title": "",
 "language": "",
@@ -172,29 +176,21 @@ Format:
 ## practical_example
 
 Format:
-
 {
 "title": "",
 "description": "",
 "code": "",
-"explanation": ""
+"explanation": "",
+"language": ""
 }
 
-If explanation contains structured content:
-
-* diagrams
-* nested bullets
-* multiline formatting
-* tables
-
-allow rich structure.
+explanation can be a plain string OR rich object if it has tables/diagrams.
 
 ---
 
 ## real_world_example
 
 Format:
-
 {
 "title": "",
 "description": ""
@@ -204,110 +200,65 @@ Format:
 
 ## common_mistakes
 
-Can be:
+Plain string array OR rich object.
 
-* array of strings
-  OR
-* rich structured content if needed
+Use array of strings when mistakes are simple one-line items:
+["Avoid mutating state directly", "Do not block the main thread"]
 
-Use rich structure when content contains:
-
-* diagrams
-* nested lists
-* multiline formatting
-* tables
-* architecture flows
-
-Example rich format:
-
+Use rich block ONLY when mistakes require table comparison or deeply nested explanation:
 {
 "type": "rich",
-"blocks": []
+"blocks": [
+{
+"type": "table",
+"headers": ["Mistake", "Problem", "Fix"],
+"rows": [
+["Mutating state", "Causes unexpected re-renders", "Use setState"],
+["Blocking thread", "Freezes UI", "Use async/await"]
+]
 }
-
+]
+}
 
 ---
 
 ## best_practices
 
-Can be:
+Plain string array OR rich object.
 
-* array of strings
-  OR
-* rich structured content if needed
-
-Use rich structure when content contains:
-
-* diagrams
-* nested lists
-* multiline formatting
-* tables
-* architecture flows
-
-Example rich format:
-
-{
-"type": "rich",
-"blocks": []
-}
-
+Same rules as common_mistakes.
+Prefer plain array unless a table or diagram is genuinely necessary.
 
 ---
 
 ## interview_notes
 
 Format:
-
 {
 "question": "",
 "answer": ""
 }
 
-Answer may use rich structure if needed.
-
-If answer contains:
-
-* diagrams
-* nested lists
-* multiline formatting
-* tables
-
-then use rich blocks.
+answer can be a plain string OR rich object if it contains tables/diagrams.
+Short answers MUST remain plain strings.
 
 ---
 
-# Rich Block Structure
+# Rich Block Structure Rules
 
-Use ONLY when necessary.
-
-Example:
-
+EVERY rich block MUST follow this exact structure:
 {
 "type": "rich",
-"blocks": [
-{
-"type": "paragraph",
-"content": "The browser parses HTML."
-},
-{
-"type": "diagram",
-"content": "HTML\n  ↓\nParser\n  ↓\nDOM Tree"
-},
-{
-"type": "bullets",
-"items": [
-{
-"text": "Browser receives HTML",
-"depth": 0
-},
-{
-"text": "Parser creates DOM",
-"depth": 1
+"blocks": []
 }
-]
-}
-]
-}
+
+NEVER:
+* omit the blocks array
+* set blocks to null
+* use blocks: {} (object instead of array)
+* leave blocks undefined
+
+If a rich block has no content, use an empty array: "blocks": []
 
 ---
 
@@ -319,6 +270,9 @@ Example:
 "type": "paragraph",
 "content": ""
 }
+
+content MUST be a non-null string.
+Split long content across multiple paragraph blocks (one idea per block).
 
 ---
 
@@ -334,11 +288,9 @@ Example:
 ]
 }
 
-Depth:
-
-* 0 = main point
-* 1 = nested point
-* 2 = deep nested point
+Depth: 0 = main, 1 = nested, 2 = deep nested
+items MUST be an array. Never null.
+text MUST be a string. Never null.
 
 ---
 
@@ -349,45 +301,21 @@ Depth:
 "items": []
 }
 
+items MUST be an array of strings. Never null.
+
 ---
 
 ## diagram
-
-Use for:
-
-* ASCII diagrams
-* arrow flows
-* architecture structures
-* indentation-based visual flows
-* Only use diagram blocks when visual flow or structural formatting is important.
-* Do NOT convert simple inline arrows or short references into diagrams unnecessarily.
-
-
-Examples:
-
-* →
-* ↓
-* |
-* ├
-* └
-* +---
-* step chains
-
-Format:
 
 {
 "type": "diagram",
 "content": ""
 }
 
-IMPORTANT:
-Preserve ALL whitespace, indentation, arrows, and line breaks exactly.
-Only use diagram blocks when visual flow or structural formatting is important.
-
-Do NOT convert simple inline arrows or short references into diagrams unnecessarily.
-
-
-Never flatten diagram content.
+Use ONLY for visual flows, architecture structures, or ASCII art.
+Preserve ALL whitespace, arrows (→ ↓ ├ └), and line breaks exactly.
+Do NOT use diagram for simple inline references.
+Do NOT use diagram for one-step descriptions.
 
 ---
 
@@ -399,88 +327,79 @@ Never flatten diagram content.
 "content": ""
 }
 
-Variants:
-
-* tip
-* warning
-* info
+variant must be exactly one of: tip | warning | info
 
 ---
 
 ## table
 
-Use for:
-
-* markdown tables
-* comparison tables
-* browser support tables
-* feature matrices
-* structured tabular information
-
-If markdown table syntax is detected like:
-
-| Name  | Role       |
-| ----- | ---------- |
-| React | UI Library |
-
-Convert into:
-
 {
 "type": "table",
-"headers": ["Name", "Role"],
+"headers": ["Col1", "Col2"],
 "rows": [
-["React", "UI Library"]
+["value1", "value2"]
 ]
 }
 
-Rules:
+TABLE STABILITY RULES — STRICTLY ENFORCED:
+* headers MUST be an array of strings — never null, never a string
+* rows MUST be an array of arrays — never null, never a flat array
+* EVERY row MUST have EXACTLY the same number of cells as the headers array
+* If a cell has no value, use an empty string "" — NEVER omit the cell
+* NEVER generate a row with fewer cells than the header count
+* NEVER generate null rows
+* Preserve table row order exactly as in the source
 
-* First row becomes headers
-* Remaining rows become rows array
-* Preserve table order exactly
-* Do NOT flatten tables into paragraphs
-* Do NOT generate HTML tables
-* Do NOT keep markdown tables in final JSON
-* Always convert markdown tables into structured table blocks
+CORRECT table with 3 columns:
+{
+"type": "table",
+"headers": ["Feature", "Sync", "Async"],
+"rows": [
+["Return value", "Direct", "Promise"],
+["Blocks thread", "Yes", "No"],
+["Use case", "Simple ops", "I/O operations"]
+]
+}
 
----
+WRONG — row missing a cell:
+"rows": [["Feature", "Sync"]]
 
-# Global Rules
+WRONG — null row:
+"rows": [null]
 
-* Preserve all whitespace and indentation for diagrams
-* Preserve nested list hierarchy
-* Preserve multiline formatting
-* Do NOT flatten structured content into one paragraph
-* Do NOT merge separate blocks together
-* Do NOT remove arrows or flow symbols
-* Keep code separate from explanations
-* Use arrays wherever multiple items exist
-* Maintain readability and clean structure
-* Convert markdown tables into structured table blocks
-* Use rich blocks only when formatting or structure genuinely requires it
-* Output ONLY valid JSON
-* Do NOT use markdown backticks
-* Do NOT add explanations outside JSON
-* Never omit schema fields
-* Use empty strings or empty arrays when content is unavailable
-* Never return null or undefined
-* Prefer simple structures unless rich formatting is genuinely required
-
-
+WRONG — headers as string:
+"headers": "Feature | Sync | Async"
 
 ---
 
-# Backward Compatibility Rule
+# Global Output Rules
 
-IMPORTANT:
+* Output ONLY valid, complete JSON — no markdown, no backticks, no explanations
+* ALL arrays must be properly closed with ]
+* ALL objects must be properly closed with }
+* ALL strings must be properly terminated with "
+* NEVER return null for any field
+* NEVER omit required schema fields
+* Use "" for missing strings
+* Use [] for missing arrays
+* Use simple strings and arrays when possible — rich blocks only when genuinely needed
+* Split long explanations into multiple shorter paragraphs
+* Use diagrams only for visual/flow content — never for simple inline references
+* Convert all markdown tables from source into structured table blocks
+* Preserve all whitespace and arrows inside diagram blocks exactly
 
-If content is simple:
+---
 
-* keep existing plain string structure
+# Completeness Guarantee
 
-Use rich blocks ONLY when content genuinely requires structured formatting.
-
-Do NOT overuse rich blocks unnecessarily.
+Before returning output, verify:
+[ ] All 12 schema keys are present
+[ ] All arrays are closed with ]
+[ ] All objects are closed with }
+[ ] All strings are closed with "
+[ ] No trailing commas on final items
+[ ] No section was cut off mid-way
+[ ] All table rows have the correct number of cells
 
 ---
 
@@ -490,116 +409,165 @@ Now convert the provided content into this exact structured format.
   },
   interview: {
     label: 'Interview',
-    prompt: `Context: I am creating an "Interview" prep guide for developers about [TOPIC].
+    prompt: `Convert the following developer notes into a structured JSON interview prep guide for VelStack.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Extract the definition, common interview questions, and mistakes to avoid.
+CRITICAL: Return ONLY complete, valid JSON. No markdown. No truncation.
+ALL arrays and objects MUST be properly closed.
+NEVER return null for any field. Use [] for empty arrays, "" for empty strings.
 
-Schema Required:
+Schema:
 {
-  "definition": "A concise definition of the topic.",
-  "interview_notes": [
-    {
-      "question": "Potential interview question",
-      "answer": "Clear, concise answer"
-    }
-  ],
-  "common_mistakes": ["Mistake 1", "Mistake 2"]
+"definition": "Concise definition of the topic.",
+"interview_notes": [
+{
+"question": "Interview question",
+"answer": "Clear, concise answer"
+}
+],
+"common_mistakes": ["Mistake 1", "Mistake 2"]
 }
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+Rules:
+* definition must be a plain string — no rich blocks
+* interview_notes must be an array of { question, answer } objects
+* answer can be a plain string or rich object with table/diagram if genuinely needed
+* common_mistakes must be an array of plain strings unless a table is required
+* Every string must be terminated. Every array must be closed.
+
+Now convert the provided content.
+`
   },
   theory: {
     label: 'Theory',
-    prompt: `Context: I am creating a "Theory" guide for developers about [TOPIC].
+    prompt: `Convert the following developer notes into a structured JSON theory guide for VelStack.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Extract the definition, a deep multi-paragraph explanation, and key sub-concepts.
+CRITICAL: Return ONLY complete, valid JSON. No markdown. No truncation.
+ALL arrays and objects MUST be properly closed.
+NEVER return null for any field. Use [] for empty arrays, "" for empty strings.
 
-Schema Required:
+Schema:
 {
-  "definition": "A concise definition of the topic.",
-  "detailed_explanation": "In-depth multi-paragraph explanation.",
-  "core_concepts": [
-    {
-      "name": "Concept name",
-      "explanation": "Detailed explanation"
-    }
-  ]
+"definition": "Concise definition of the topic.",
+"detailed_explanation": "",
+"core_concepts": [
+{
+"name": "Concept name",
+"explanation": "Detailed explanation"
+}
+]
 }
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+Rules:
+* definition must be a plain string
+* detailed_explanation can be a plain string or rich object — use rich only if content has tables/diagrams/nested structure
+* For long explanations, split into multiple short paragraphs inside rich blocks — one idea per paragraph block
+* core_concepts must be an array of { name, explanation } objects
+* explanation can be plain string or rich object if tables/diagrams are needed — keep short explanations as plain strings
+* Every string must be terminated. Every array must be closed.
+
+Now convert the provided content.
+`
   },
   simple: {
     label: 'Simple',
-    prompt: `Context: I am creating a "Simple" introductory guide for developers about [TOPIC].
+    prompt: `Convert the following developer notes into a beginner-friendly structured JSON guide for VelStack.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Keep things extremely beginner-friendly.
+CRITICAL: Return ONLY complete, valid JSON. No markdown. No truncation.
+ALL arrays and objects MUST be properly closed.
+NEVER return null for any field. Use [] for empty arrays, "" for empty strings.
 
-Schema Required:
+Schema:
 {
-  "definition": "A concise, beginner-friendly definition of the topic.",
-  "code_example": [
-    {
-      "title": "Basic Example",
-      "language": "javascript",
-      "code": "// Simple code example"
-    }
-  ]
+"definition": "Beginner-friendly definition.",
+"code_example": [
+{
+"title": "Basic Example",
+"language": "javascript",
+"code": "// Simple code example"
+}
+]
 }
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+Rules:
+* definition must be a plain string — short, simple, jargon-free
+* code_example must be an array of { title, language, code } objects
+* code field must contain ONLY code — no explanation mixed in
+* Every string must be terminated. Every array must be closed.
+
+Now convert the provided content.
+`
   },
   revision: {
     label: 'Revision',
-    prompt: `Context: I am creating a "Revision" summary for developers about [TOPIC].
+    prompt: `Convert the following developer notes into a structured JSON revision summary for VelStack.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Extract just the most important facts for a quick refresher.
+CRITICAL: Return ONLY complete, valid JSON. No markdown. No truncation.
+ALL arrays and objects MUST be properly closed.
+NEVER return null for any field. Use [] for empty arrays, "" for empty strings.
 
-Schema Required:
+Schema:
 {
-  "core_concepts": [
-    {
-      "name": "Concept name",
-      "explanation": "Brief explanation"
-    }
-  ],
-  "syntax": [
-    {
-      "title": "Basic Syntax",
-      "language": "javascript",
-      "code": "..."
-    }
-  ],
-  "best_practices": ["Best practice 1", "Best practice 2"]
+"core_concepts": [
+{
+"name": "Concept name",
+"explanation": "Brief explanation"
+}
+],
+"syntax": [
+{
+"title": "Basic Syntax",
+"language": "javascript",
+"code": "..."
+}
+],
+"best_practices": ["Best practice 1", "Best practice 2"]
 }
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+Rules:
+* core_concepts must be an array of { name, explanation } objects — keep explanations brief
+* syntax must be an array of { title, language, code } objects — code field contains ONLY code
+* best_practices must be an array of plain strings unless a comparison table is genuinely needed
+* Every string must be terminated. Every array must be closed.
+
+Now convert the provided content.
+`
   },
   realtime: {
     label: 'Real-time',
-    prompt: `Context: I am creating a "Real-time" / Real-world usage guide for developers about [TOPIC].
+    prompt: `Convert the following developer notes into a structured JSON real-world usage guide for VelStack.
 
-Task: Convert the following raw notes into a strictly valid JSON object. Focus on where and how this is actually used in real projects.
+CRITICAL: Return ONLY complete, valid JSON. No markdown. No truncation.
+ALL arrays and objects MUST be properly closed.
+NEVER return null for any field. Use [] for empty arrays, "" for empty strings.
 
-Schema Required:
+Schema:
 {
-  "real_world_example": [
-    {
-      "title": "Use Case Title",
-      "description": "How it is used in the real world"
-    }
-  ],
-  "practical_example": [
-    {
-      "title": "Example Title",
-      "description": "...",
-      "code": "...",
-      "explanation": "...",
-      "language": "javascript"
-    }
-  ]
+"real_world_example": [
+{
+"title": "Use Case Title",
+"description": "How it is used in the real world"
+}
+],
+"practical_example": [
+{
+"title": "Example Title",
+"description": "...",
+"code": "...",
+"explanation": "...",
+"language": "javascript"
+}
+]
 }
 
-Instructions: Do not include markdown formatting. Just return the raw JSON.`
+Rules:
+* real_world_example must be an array of { title, description } objects
+* practical_example must be an array of { title, description, code, explanation, language } objects
+* code field must contain ONLY code — no explanation mixed in
+* explanation can be a plain string or rich object if tables/diagrams are needed
+* Every string must be terminated. Every array must be closed.
+
+Now convert the provided content.
+`
   }
 }
 

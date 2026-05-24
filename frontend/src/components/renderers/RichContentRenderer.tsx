@@ -115,46 +115,50 @@ export const RichContentRenderer = memo(function RichContentRenderer({
     
     return (
       <div className="space-y-4">
-        {richContent.blocks.map((block, index) => {
+        {(richContent.blocks ?? []).map((block, index) => {
           switch (block.type) {
             case 'paragraph':
               return (
                 <p key={index} className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-                  {renderInlineMarkdown(block.content)}
+                  {renderInlineMarkdown(typeof block.content === 'string' ? block.content : '')}
                 </p>
               )
             case 'diagram':
               return (
                 <pre key={index} className="diagram">
-                  {block.content}
+                  {typeof block.content === 'string' ? block.content : ''}
                 </pre>
               )
-            case 'bullets':
+            case 'bullets': {
+              const items = Array.isArray(block.items) ? block.items : []
               return (
                 <ul key={index} className="space-y-2.5 pl-1">
-                  {block.items.map((item, i) => {
+                  {items.map((item, i) => {
                     const indent = item.depth === 0 ? '0' : item.depth === 1 ? '1.5rem' : '3rem'
                     return (
                       <li key={i} className="flex items-start gap-3" style={{ marginLeft: indent }}>
                         <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-orange" aria-hidden="true" />
                         <span className="text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-                          {renderInlineMarkdown(item.text)}
+                          {renderInlineMarkdown(typeof item.text === 'string' ? item.text : '')}
                         </span>
                       </li>
                     )
                   })}
                 </ul>
               )
-            case 'numbered_list':
+            }
+            case 'numbered_list': {
+              const listItems = Array.isArray(block.items) ? block.items : []
               return (
                 <ol key={index} className="list-decimal space-y-2.5 pl-6 text-base leading-8 text-slate-700 sm:text-[1.02rem]">
-                  {block.items.map((item, i) => (
+                  {listItems.map((item, i) => (
                     <li key={i} className="pl-1">
-                      {renderInlineMarkdown(item)}
+                      {renderInlineMarkdown(typeof item === 'string' ? item : '')}
                     </li>
                   ))}
                 </ol>
               )
+            }
             case 'callout': {
               const borderColors = {
                 tip: 'border-green-500',
@@ -168,7 +172,7 @@ export const RichContentRenderer = memo(function RichContentRenderer({
               }
               return (
                 <div key={index} className={`rounded-r-xl border-l-4 p-4 text-slate-800 text-sm leading-6 ${borderColors[block.variant]} ${bgColors[block.variant]}`}>
-                  {renderInlineMarkdown(block.content)}
+                  {renderInlineMarkdown(typeof block.content === 'string' ? block.content : '')}
                 </div>
               )
             }

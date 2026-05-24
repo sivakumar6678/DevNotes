@@ -211,6 +211,10 @@ export function hasRenderableContent(sectionKey: string, value: unknown): boolea
       return normalizeCodeItems(value).length > 0
     case 'common_mistakes':
     case 'best_practices':
+      // Support both legacy string-array and new rich structured format
+      if (value && typeof value === 'object' && !Array.isArray(value) && (value as Record<string, unknown>).type === 'rich') {
+        return hasStructuredTextContent(value)
+      }
       return normalizeStringList(value).length > 0
     case 'practical_example':
     case 'real_world_example':

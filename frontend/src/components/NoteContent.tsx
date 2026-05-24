@@ -80,6 +80,15 @@ const NoteSection = memo(function NoteSection({
       )
     }
     case 'list': {
+      // New rich structured format (tables, bullets, diagrams, etc.)
+      if (value && typeof value === 'object' && !Array.isArray(value) && (value as Record<string, unknown>).type === 'rich') {
+        return (
+          <SectionBlock id={section.id} title={section.title}>
+            <RichContentRenderer content={value as RichContent} />
+          </SectionBlock>
+        )
+      }
+      // Legacy string-array format — unchanged
       const items = normalizeStringList(value)
       if (!items.length) return null
       return (

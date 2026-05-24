@@ -1,7 +1,7 @@
 # VelStack — Feature Registry
 
 > This document tracks every feature in the VelStack codebase. Each entry is derived from existing, implemented code.  
-> **Last audited:** 2026-04-29
+> **Last audited:** 2026-05-24
 
 ---
 
@@ -21,6 +21,11 @@
 | 10 | Admin Dashboard (Legacy)       | ⚠️ In Progress   |
 | 11 | Analytics & Event Tracking     | ⚠️ In Progress   |
 | 12 | Role-Based Access Control      | ✅ Implemented   |
+| 13 | Admin Note Editor Page         | ✅ Implemented   |
+| 14 | Rich Content Rendering System  | ✅ Implemented   |
+| 15 | Content Validation Pipeline    | ✅ Implemented   |
+| 16 | Editor Save-State UX           | ✅ Implemented   |
+| 17 | Admin Guidelines System        | ✅ Implemented   |
 
 ---
 
@@ -173,7 +178,7 @@
 
 ### Constraints
 
-- Content is raw JSON — no schema validation on content structure.
+- Content schema is validated on save via `validate_note_content()` in `content_validation.py`.
 - No version history / audit trail (overwriting a version replaces it).
 - No diff between versions.
 - The six version types are hardcoded in both frontend and backend.
@@ -181,7 +186,6 @@
 ### Pending work
 
 - [ ] Version history (keep previous revisions)
-- [ ] Content schema validation
 - [ ] Add/remove version types dynamically
 
 ---
@@ -195,8 +199,12 @@
 
 | Capability                | Component                       |
 |---------------------------|---------------------------------|
-| Structured note rendering | `NoteContent.tsx` — 12 section types (definition, problem_it_solves, detailed_explanation, core_concepts, how_it_works, syntax, code_example, practical_example, real_world_example, common_mistakes, best_practices, interview_notes) |
-| Structured list rendering | `note-blocks.tsx` (`StructuredTextBlock` & `parseStructuredText` parser) — parses and renders lists, numbered/bulleted points, arrays, and single/multiple line breaks in `problem_it_solves`, `detailed_explanation`, and `how_it_works` as beautiful ordered/unordered lists or paragraphs |
+| Structured note rendering | `NoteContent.tsx` — 12 known section types plus dynamic unknown-key sections |
+| Rich block rendering      | `RichContentRenderer.tsx` — supports `paragraph`, `diagram`, `bullets`, `callout`, `numbered_list`, `table` |
+| Table block rendering     | `TableRenderer` inside `RichContentRenderer` — overflow-x scroll, header/row normalization, inline markdown in cells |
+| Hybrid field rendering    | `definition`, `problem_it_solves`, `detailed_explanation`, `how_it_works` accept both plain strings and rich objects |
+| List section hybrid       | `common_mistakes`, `best_practices` render as string-list OR rich object (tables, bullets, etc.) |
+| Structured text parsing   | `note-blocks.tsx` (`StructuredTextBlock`) — markdown-style bullet/numbered/flow-diagram parser for plain string fields |
 | Version switching         | `VersionTabs.tsx` — floating tab bar with icons |
 | Sidebar curriculum tree   | `Sidebar.tsx` — collapsible tree with technology selector |
 | Table of contents         | `TableOfContents.tsx` — auto-generated from note sections |
@@ -207,14 +215,12 @@
 
 ### Constraints
 
-- Content rendering assumes specific JSON key names (12 hardcoded section types).
-- No full Markdown document rendering — only plain text, lists, code blocks, and structured inline tags (`**` and `` ` ``).
+- Content rendering is keyed on 12 known section names; unknown keys render as generic text blocks.
 - Code blocks have no syntax highlighting.
 - Sidebar only shows published technologies.
 
 ### Pending work
 
-- [ ] Markdown / rich text rendering
 - [ ] Syntax highlighting for code blocks
 - [ ] Search within notes
 
@@ -428,3 +434,175 @@
 - [ ] Define and enforce contributor permissions
 - [ ] Role management UI for admins
 - [ ] Granular, per-resource permissions (optional)
+
+---
+
+## 13. Admin Note Editor Page
+
+**Status:** ✅ Implemented  
+**Scope:** Dedicated full-page admin editor (`NoteEditorPage.tsx`) replacing the legacy drawer-based workflow.
+
+### What exists
+
+| Capability                  | Details |
+|-----------------------------|---------|
+| Topic selector sidebar      | Searchable list of all subtopic nodes; click to load content |
+| Version tab switcher        | 6 version tabs (industry, simple, interview, revision, realtime, theory) |
+| JSON textarea editor        | Full-page textarea with live JSON error detection |
+| Split view (editor/preview) | Toggle between raw JSON editor and live rendered preview |
+| Live preview pane           | Renders `NoteContent` from the current editor JSON |
+| Publish/unpublish toggle    | Button reads topic `is_published` state; updates in real time |
+| Published/Draft badge       | Pill badge in header reflects live publish state |
+| Dirty-state tracking        | `isDirty` flag compares current input against saved snapshot |
+| Save-state system           | 3 states: `Loading` (skeleton), `Save` (dirty), `Saved` (clean, emerald badge) |
+| JSON error guard            | Save button disabled when textarea contains invalid JSON |
+| Fallback fetch on save      | After save, refetches from DB to sync `contentInputs` and `originalContent` to identical representation — prevents false dirty state |
+| Keyboard shortcut           | `Ctrl+S` / `Cmd+S` triggers save |
+
+### Constraints
+
+- Editor is JSON-only; no rich text or WYSIWYG interface.
+- `isSubtopic` detection reads `topic.type` but API returns `node_type` — mismatch causes notice to always be hidden (known open issue).
+- No unsaved-change navigation warning before leaving the page.
+
+### Pending work
+
+- [ ] Fix `node_type` vs `type` field mismatch in API response
+- [ ] Unsaved-changes navigation guard
+- [ ] Keyboard shortcut help tooltip
+
+---
+
+## 14. Rich Content Rendering System
+
+**Status:** ✅ Implemented  
+**Scope:** Hybrid content rendering supporting both legacy plain-string/array formats and new rich structured JSON blocks.
+
+### What exists
+
+| Component | Capability |
+|-----------|------------|
+| `RichContentRenderer.tsx` | Renders `{ type: "rich", blocks: [] }` objects; dispatches each block to the correct sub-renderer |
+| `TableRenderer` (inside `RichContentRenderer`) | Renders table blocks with `headers` and `rows`; overflow-x scroll; empty cell fallback; inline markdown in cells |
+| `paragraph` block | Renders as `<p>` with inline bold/code markdown |
+| `diagram` block | Renders as `<pre class="diagram">` preserving whitespace and ASCII art |
+| `bullets` block | Renders as `<ul>` with depth-based indent (0 / 1.5rem / 3rem) |
+| `numbered_list` block | Renders as `<ol>` |
+| `callout` block | Renders as bordered `<div>` with `tip` / `warning` / `info` variants |
+| `table` block | Delegated to `TableRenderer`; headers optional |
+| `contentNormalizer.ts` | `normalizeRichBlock()` normalizes all 6 block types before rendering; `table` case normalizes `headers → string[]`, `rows → string[][]` |
+| Hybrid field support | `definition`, `problem_it_solves`, `detailed_explanation`, `how_it_works` → auto-routed to `RichContentRenderer` when value is a rich object |
+| List section hybrid | `common_mistakes`, `best_practices` → `RichContentRenderer` for rich objects, `ListBlock` for string arrays |
+
+### Defensive rendering guarantees
+
+- `richContent.blocks ?? []` — null blocks never crash the renderer.
+- `Array.isArray(block.items) ? block.items : []` — null items on bullets/numbered_list never crash.
+- `typeof block.content === 'string' ? block.content : ''` — non-string content on paragraph/diagram/callout is coerced safely.
+- Non-array rows in `TableRenderer` return `null` per row (skipped silently).
+
+### Constraints
+
+- No support for nested rich objects inside rich blocks (e.g., a `bullets` block whose `item.text` is itself a rich object).
+- `code` block type exists in backend `valid_types` but has no renderer case (falls to `default: return null`).
+
+### Pending work
+
+- [ ] Add `code` block renderer case inside `RichContentRenderer`
+- [ ] Add `table` to backend `valid_types` with internal shape validation
+
+---
+
+## 15. Content Validation Pipeline
+
+**Status:** ✅ Implemented  
+**Scope:** Backend normalization + strict schema validation before any content reaches the database.
+
+### What exists
+
+| Layer | File | Capability |
+|-------|------|------------|
+| Normalization | `content_validation.py` → `normalize_content_payload()` | Salvages malformed AI output before validation; coerces wrong types, wraps scalars into arrays |
+| Primitive validation | `validate_primitive_field()` | Enforces `definition` is a non-empty string |
+| Hybrid validation | `validate_hybrid_field()` | Accepts `string` OR `{ type: "rich", blocks: [] }` for `problem_it_solves`, `detailed_explanation`, `how_it_works` |
+| Rich block validation | `validate_rich_content()` | Validates `type`, `blocks` array, and block `type` presence; warns on unrecognized types |
+| List-of-strings validation | `validate_list_of_strings()` | Enforces `common_mistakes`, `best_practices` as `string[]` |
+| Collection validation | `validate_collection_field()` | Validates `core_concepts`, `syntax`, `code_example`, `practical_example`, `real_world_example`, `interview_notes` as typed arrays |
+| Entry point | `validate_note_content()` | Runs normalization → missing-key check → full field validation |
+
+### Frontend normalizer mirror
+
+`contentNormalizer.ts` → `normalizeNoteVersion()` mirrors the same field-type expectations on the frontend, ensuring DB content is safely shaped before reaching any renderer.
+
+### Known open issues
+
+- `validate_list_of_strings` throws `ValidationError` if a rich dict appears as an array item (AI may produce this if `common_mistakes` uses a rich block per item).
+- `"table"` block type is not in backend `valid_types` — only logged as a warning.
+
+### Pending work
+
+- [ ] Add `"table"` to `valid_types` with row/header shape validation
+- [ ] Allow rich dict items inside `common_mistakes`/`best_practices` arrays without throwing
+
+---
+
+## 16. Editor Save-State UX
+
+**Status:** ✅ Implemented  
+**Scope:** Three-state save button system with dirty-state tracking in `NoteEditorPage.tsx`.
+
+### States
+
+| State | Trigger | Button label | Button style | Enabled? |
+|-------|---------|-------------|--------------|----------|
+| Loading | Topic data fetching | Skeleton | — | Disabled |
+| Save (dirty) | Content changed from saved snapshot | `Save` | Dark active style + Save icon | ✅ Yes |
+| Saving | `handleSave` in flight | `Saving…` | `SavingLoader` spinner | Disabled |
+| Saved (clean) | After successful save | `Saved` | Emerald badge + CheckCircle2 icon | Disabled |
+
+### Dirty-state logic
+
+- `isDirty = contentInput !== savedContent` — strict character-level comparison (not trimmed).
+- On successful save: both `contentInputs[versionType]` and `originalContent[versionType]` are set to the same `freshStr` value fetched from the database (falls back to stringified local payload if refetch fails).
+- This guarantees the dirty flag resets to `false` immediately after save regardless of field ordering differences between local and server representations.
+
+### Edge cases handled
+
+- Undo/redo (Ctrl+Z) restores exact original content → button flips back to Saved.
+- Version tab switch → dirty state reflects the newly active version's snapshot.
+- Topic switch → all `contentInputs` and `originalContent` are reset.
+- JSON error → Save button disabled regardless of dirty state.
+
+---
+
+## 17. Admin Guidelines System
+
+**Status:** ✅ Implemented  
+**Scope:** In-app documentation for the AI JSON conversion prompt format, accessible to admins at `/admin/guidelines`.
+
+### What exists
+
+| Page | Route | Content |
+|------|-------|---------|
+| `PromptGuide.tsx` | `/admin/guidelines/prompt` | Full AI prompt specification: schema, field types, rich block rules, diagram usage rules, table format, output constraints |
+| How-to-upload guide | `/admin/guidelines/upload` | Step-by-step structured upload instructions |
+| JSON schema viewer | `/admin/guidelines/schema` | Interactive multi-version JSON schema reference |
+
+### Prompt guide content (current)
+
+- All 12 schema fields documented with type and format rules.
+- `definition` → string only.
+- `problem_it_solves`, `detailed_explanation`, `how_it_works` → string OR rich object.
+- `common_mistakes`, `best_practices` → string array OR rich object.
+- `core_concepts` → array of `{ name, explanation }`.
+- `syntax`, `code_example` → array of `{ title, language, code }`.
+- `practical_example`, `real_world_example` → array with description/explanation.
+- `interview_notes` → array of `{ question, answer }`.
+- Rich block types documented: `paragraph`, `bullets`, `numbered_list`, `diagram`, `callout`, `table`.
+- Diagram usage rules: only for visual flow, not for simple inline references.
+- Output rules: valid JSON only, no markdown backticks, no explanations outside JSON, no null arrays.
+
+### Pending work
+
+- [ ] Version-specific prompt variants (e.g., different guidance for `interview` vs `simple` versions)
+- [ ] Prompt copy-to-clipboard button for direct AI paste

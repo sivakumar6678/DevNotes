@@ -150,7 +150,16 @@ export function normalizeNoteVersion(version: any): NoteVersion {
       }
       case 'common_mistakes':
       case 'best_practices': {
-        if (Array.isArray(value)) {
+        if (value && typeof value === 'object' && !Array.isArray(value) && (value as any).type === 'rich') {
+          // New rich structured format — normalize each block
+          normalized[key] = {
+            type: 'rich',
+            blocks: Array.isArray((value as any).blocks)
+              ? (value as any).blocks.map(normalizeRichBlock)
+              : []
+          }
+        } else if (Array.isArray(value)) {
+          // Legacy string-array format — unchanged behaviour
           normalized[key] = value.map((item: any) => typeof item === 'string' ? item : '')
         } else {
           normalized[key] = []
@@ -249,6 +258,20 @@ function normalizeRichBlock(block: any): any {
           ? block.variant
           : 'info',
         content: typeof block.content === 'string' ? block.content : ''
+      }
+    case 'table':
+      return {
+        type: 'table',
+        headers: Array.isArray(block.headers)
+          ? block.headers.map((h: any) => (typeof h === 'string' ? h : ''))
+          : undefined,
+        rows: Array.isArray(block.rows)
+          ? block.rows.map((row: any) =>
+              Array.isArray(row)
+                ? row.map((cell: any) => (typeof cell === 'string' ? cell : ''))
+                : []
+            )
+          : []
       }
     default:
       return block
