@@ -19,7 +19,7 @@ function isExpired<T>(entry: CacheEntry<T>): boolean {
 
 // ─── Technologies list ────────────────────────────────────────────────────────
 
-import type { CurriculumNode, Technology } from '../types'
+import type { CurriculumNode, Technology, TopicNoteData } from '../types'
 
 let technologiesEntry: CacheEntry<Technology[]> | null = null
 
@@ -84,9 +84,31 @@ export const curriculumCache = {
     this.publicTreeCache.delete(techId)
   },
 
+  // ── Notes cache (keyed by topic id) ──────────────────────────────────────────
+
+  noteCache: new Map<number, CacheEntry<TopicNoteData>>(),
+
+  getNote(topicId: number): TopicNoteData | null {
+    const entry = this.noteCache.get(topicId)
+    if (!entry || isExpired(entry)) {
+      this.noteCache.delete(topicId)
+      return null
+    }
+    return entry.data
+  },
+
+  setNote(topicId: number, data: TopicNoteData): void {
+    this.noteCache.set(topicId, { data, cachedAt: Date.now() })
+  },
+
+  invalidateNote(topicId: number): void {
+    this.noteCache.delete(topicId)
+  },
+
   invalidateAll(): void {
     technologiesEntry = null
     this.treeCache.clear()
     this.publicTreeCache.clear()
+    this.noteCache.clear()
   },
 }

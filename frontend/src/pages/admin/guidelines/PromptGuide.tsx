@@ -56,6 +56,7 @@ If content contains:
 * arrows
 * nested explanations
 * diagrams
+* tables
 
 then use:
 
@@ -71,6 +72,7 @@ Supported block types:
 * numbered_list
 * diagram
 * callout
+* table
 
 ---
 
@@ -90,6 +92,7 @@ Use rich structure when content includes:
 * architecture flows
 * ASCII structures
 * step-by-step flows
+* tables
 
 ---
 
@@ -107,6 +110,7 @@ If explanation contains complex formatting:
 * nested lists
 * diagrams
 * multiline flows
+* tables
 
 then explanation can become:
 
@@ -116,6 +120,25 @@ then explanation can become:
 }
 
 ---
+## how_it_works
+
+Can be:
+
+* plain string
+  OR
+* rich structured content
+
+Use rich structure when content includes:
+
+* diagrams
+* architecture flows
+* nested explanations
+* step-by-step execution
+* multiline formatting
+* tables
+
+---
+
 
 ## syntax
 
@@ -162,6 +185,7 @@ If explanation contains structured content:
 * diagrams
 * nested bullets
 * multiline formatting
+* tables
 
 allow rich structure.
 
@@ -180,13 +204,53 @@ Format:
 
 ## common_mistakes
 
-Array of strings.
+Can be:
+
+* array of strings
+  OR
+* rich structured content if needed
+
+Use rich structure when content contains:
+
+* diagrams
+* nested lists
+* multiline formatting
+* tables
+* architecture flows
+
+Example rich format:
+
+{
+"type": "rich",
+"blocks": []
+}
+
 
 ---
 
 ## best_practices
 
-Array of strings.
+Can be:
+
+* array of strings
+  OR
+* rich structured content if needed
+
+Use rich structure when content contains:
+
+* diagrams
+* nested lists
+* multiline formatting
+* tables
+* architecture flows
+
+Example rich format:
+
+{
+"type": "rich",
+"blocks": []
+}
+
 
 ---
 
@@ -200,6 +264,15 @@ Format:
 }
 
 Answer may use rich structure if needed.
+
+If answer contains:
+
+* diagrams
+* nested lists
+* multiline formatting
+* tables
+
+then use rich blocks.
 
 ---
 
@@ -286,6 +359,9 @@ Use for:
 * arrow flows
 * architecture structures
 * indentation-based visual flows
+* Only use diagram blocks when visual flow or structural formatting is important.
+* Do NOT convert simple inline arrows or short references into diagrams unnecessarily.
+
 
 Examples:
 
@@ -306,6 +382,10 @@ Format:
 
 IMPORTANT:
 Preserve ALL whitespace, indentation, arrows, and line breaks exactly.
+Only use diagram blocks when visual flow or structural formatting is important.
+
+Do NOT convert simple inline arrows or short references into diagrams unnecessarily.
+
 
 Never flatten diagram content.
 
@@ -327,6 +407,44 @@ Variants:
 
 ---
 
+## table
+
+Use for:
+
+* markdown tables
+* comparison tables
+* browser support tables
+* feature matrices
+* structured tabular information
+
+If markdown table syntax is detected like:
+
+| Name  | Role       |
+| ----- | ---------- |
+| React | UI Library |
+
+Convert into:
+
+{
+"type": "table",
+"headers": ["Name", "Role"],
+"rows": [
+["React", "UI Library"]
+]
+}
+
+Rules:
+
+* First row becomes headers
+* Remaining rows become rows array
+* Preserve table order exactly
+* Do NOT flatten tables into paragraphs
+* Do NOT generate HTML tables
+* Do NOT keep markdown tables in final JSON
+* Always convert markdown tables into structured table blocks
+
+---
+
 # Global Rules
 
 * Preserve all whitespace and indentation for diagrams
@@ -338,9 +456,17 @@ Variants:
 * Keep code separate from explanations
 * Use arrays wherever multiple items exist
 * Maintain readability and clean structure
+* Convert markdown tables into structured table blocks
+* Use rich blocks only when formatting or structure genuinely requires it
 * Output ONLY valid JSON
 * Do NOT use markdown backticks
 * Do NOT add explanations outside JSON
+* Never omit schema fields
+* Use empty strings or empty arrays when content is unavailable
+* Never return null or undefined
+* Prefer simple structures unless rich formatting is genuinely required
+
+
 
 ---
 
@@ -359,6 +485,7 @@ Do NOT overuse rich blocks unnecessarily.
 ---
 
 Now convert the provided content into this exact structured format.
+
 `
   },
   interview: {

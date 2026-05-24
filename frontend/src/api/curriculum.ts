@@ -1,5 +1,6 @@
 import type { CurriculumNode, TopicNoteData, TopicPayload, Technology } from '../types'
 import { apiFetch } from './auth'
+import { curriculumCache } from '../cache/curriculumCache'
 
 // ─── Technologies ─────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export async function deleteTechnology(techId: number): Promise<void> {
 function normalizeCurriculumNode(node: CurriculumNode): CurriculumNode {
   return {
     ...node,
-    node_type: node.node_type ?? (node as any).type ?? 'topic',
+    node_type: node.node_type ?? (node as unknown as { type?: 'section' | 'topic' | 'subtopic' }).type ?? 'topic',
     is_published: node.is_published ?? false,
     sort_order: node.sort_order ?? 0,
     children: (node.children ?? []).map(normalizeCurriculumNode),
@@ -105,18 +106,35 @@ export async function deleteTopic(topicId: number): Promise<{ deleted_ids: numbe
 
 // ─── Notes ───────────────────────────────────────────────────────────────────
 
-export async function fetchNoteByTopic(topicId: number): Promise<TopicNoteData> {
+export async function fetchNoteByTopic(topicId: number, forceRefetch = false): Promise<TopicNoteData> {
+  if (!forceRefetch) {
+    const cached = curriculumCache.getNote(topicId)
+    if (cached) {
+      return cached
+    }
+  }
+
   const noteData = await apiFetch<TopicNoteData>(`/api/topics/${topicId}/note`)
   
   try {
-    // Fetch curriculum tree to get the missing is_published and sort_order fields
-    const nodes = await fetchCurriculumAdmin(noteData.topic.technology_id)
+    const techId = noteData.topic.technology_id
+    let nodes = curriculumCache.getTree(techId)
+    if (!nodes) {
+      nodes = await fetchCurriculumAdmin(techId)
+      curriculumCache.setTree(techId, nodes)
+    }
     
     let foundNode: CurriculumNode | undefined
     function findNode(tree: CurriculumNode[]) {
       for (const n of tree) {
-        if (n.id === topicId) foundNode = n
-        if (!foundNode && n.children) findNode(n.children)
+        if (n.id === topicId) {
+          foundNode = n
+          return
+        }
+        if (n.children && n.children.length > 0) {
+          findNode(n.children)
+          if (foundNode) return
+        }
       }
     }
     findNode(nodes)
@@ -129,6 +147,7 @@ export async function fetchNoteByTopic(topicId: number): Promise<TopicNoteData> 
     console.error('Failed to augment note data with publish status:', err)
   }
   
+  curriculumCache.setNote(topicId, noteData)
   return noteData
 }
 

@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { ReactNode } from 'react'
-import type { FieldContent, RichContent } from '../../types/richContent'
+import type { FieldContent, RichContent, TableBlock } from '../../types/richContent'
 import { StructuredTextBlock } from '../note-blocks'
 
 function renderInlineMarkdown(text: string): ReactNode[] {
@@ -26,6 +26,79 @@ function renderInlineMarkdown(text: string): ReactNode[] {
     return token
   })
 }
+
+const TableRenderer = memo(function TableRenderer({ block }: { block: TableBlock }) {
+  if (!block || !Array.isArray(block.rows) || block.rows.length === 0) {
+    return null
+  }
+
+  const headerCount = Array.isArray(block.headers) ? block.headers.length : 0
+  const maxCols = Math.max(
+    headerCount,
+    ...block.rows.map((row) => (Array.isArray(row) ? row.length : 0))
+  )
+
+  if (maxCols === 0) {
+    return null
+  }
+
+  const hasHeaders = headerCount > 0
+
+  return (
+    <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white my-5 shadow-sm">
+      <table className="w-full border-collapse text-left text-sm text-slate-700">
+        {hasHeaders && (
+          <thead className="bg-slate-50 text-slate-900 border-b border-slate-200">
+            <tr className="divide-x divide-slate-200">
+              {Array.from({ length: maxCols }).map((_, i) => {
+                const headerText = block.headers?.[i] || ''
+                return (
+                  <th
+                    key={i}
+                    className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap align-bottom bg-slate-50/50"
+                  >
+                    {headerText ? renderInlineMarkdown(headerText) : ''}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+        )}
+        <tbody className="divide-y divide-slate-200 bg-white">
+          {block.rows.map((row, rowIndex) => {
+            if (!Array.isArray(row)) return null
+            return (
+              <tr
+                key={rowIndex}
+                className="hover:bg-slate-50/30 transition-colors divide-x divide-slate-200"
+              >
+                {Array.from({ length: maxCols }).map((_, colIndex) => {
+                  const cellContent = row[colIndex] || ''
+                  return (
+                    <td
+                      key={colIndex}
+                      className="px-4 py-3 font-normal text-slate-700 align-top break-words min-w-[120px]"
+                    >
+                      {cellContent ? (
+                        cellContent.split('\n').map((line, idx) => (
+                          <div key={idx} className={idx > 0 ? 'mt-1' : ''}>
+                            {renderInlineMarkdown(line)}
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-slate-400 font-light">—</span>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+})
 
 export const RichContentRenderer = memo(function RichContentRenderer({
   content,
@@ -99,6 +172,8 @@ export const RichContentRenderer = memo(function RichContentRenderer({
                 </div>
               )
             }
+            case 'table':
+              return <TableRenderer key={index} block={block as TableBlock} />
             default:
               return null
           }

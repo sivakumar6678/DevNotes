@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen,
@@ -227,7 +227,7 @@ export default function CurriculumPage() {
   }
 
   // ─── Node CRUD ─────────────────────────────────────────────────────────────
-  async function handleAddChild(parentId: number | null, name: string, nodeType: NodeType) {
+  const handleAddChild = useCallback(async (parentId: number | null, name: string, nodeType: NodeType) => {
     if (!activeTechId) return
     setIsCreatingTopic(true)
     setError('')
@@ -247,9 +247,9 @@ export default function CurriculumPage() {
     } finally {
       setIsCreatingTopic(false)
     }
-  }
+  }, [activeTechId, invalidateTree, loadTree])
 
-  async function handleRename(nodeId: number, newName: string) {
+  const handleRename = useCallback(async (nodeId: number, newName: string) => {
     try {
       await updateTopic(nodeId, { name: newName })
       if (activeTechId) {
@@ -259,9 +259,9 @@ export default function CurriculumPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rename.')
     }
-  }
+  }, [activeTechId, invalidateTree, loadTree])
 
-  async function handleDelete(nodeId: number) {
+  const handleDelete = useCallback(async (nodeId: number) => {
     try {
       await deleteTopic(nodeId)
       if (selectedNode?.id === nodeId) setSelectedNode(null)
@@ -272,9 +272,9 @@ export default function CurriculumPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete.')
     }
-  }
+  }, [activeTechId, selectedNode, invalidateTree, loadTree])
 
-  async function handleTogglePublishNode(nodeId: number, current: boolean) {
+  const handleTogglePublishNode = useCallback(async (nodeId: number, current: boolean) => {
     try {
       await updateTopic(nodeId, { is_published: !current })
       if (activeTechId) {
@@ -284,15 +284,15 @@ export default function CurriculumPage() {
     } catch {
       setError('Failed to update publish status.')
     }
-  }
+  }, [activeTechId, invalidateTree, loadTree])
 
   // ─── Node selection → navigate to editor page ─────────────────────────────
-  function handleNodeSelect(node: CurriculumNode) {
+  const handleNodeSelect = useCallback((node: CurriculumNode) => {
     setSelectedNode(node)
     if (node.node_type === 'subtopic') {
       navigate(`/admin/notes/${node.id}/edit`)
     }
-  }
+  }, [navigate])
 
   // ─── Flash helper ──────────────────────────────────────────────────────────
   function flash(msg: string) {

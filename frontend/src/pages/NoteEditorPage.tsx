@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Globe, EyeOff } from 'lucide-react'
-import { PrimaryLoader, SavingLoader } from '../components/Loader'
+import { ArrowLeft, Save, Globe, EyeOff, CheckCircle2 } from 'lucide-react'
+import { SavingLoader } from '../components/Loader'
 import NoteContent from '../components/NoteContent'
 import { fetchNoteByTopic, createVersion, updateTopic } from '../api/curriculum'
 import type { TopicNoteData } from '../types'
@@ -9,7 +9,7 @@ import { normalizeNoteVersion } from '../utils/contentNormalizer'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const AVAILABLE_VERSIONS = [
+const AVAILABLE_VERSIONS = [
   { id: 'industry', label: 'Industry', description: 'Deep-dive into production usage and architecture' },
   { id: 'interview', label: 'Interview', description: 'Q&A format for interview preparation' },
   { id: 'theory', label: 'Theory', description: 'Comprehensive theoretical explanation' },
@@ -38,6 +38,50 @@ const PLACEHOLDER_JSON = `{
 }`
 
 
+// ─── High Fidelity Editor Skeleton ────────────────────────────────────────────
+function EditorSkeleton() {
+  return (
+    <div className="ne-vertical-layout animate-pulse">
+      {/* View Toggle Skeleton */}
+      <div className="ne-view-toggle opacity-60">
+        <div className="h-7 w-20 bg-slate-200 rounded-md" />
+        <div className="h-7 w-20 bg-slate-100 rounded-md ml-2" />
+      </div>
+
+      <div className="flex flex-col gap-6">
+        {/* Title skeleton */}
+        <div className="space-y-2.5">
+          <div className="h-4 w-32 bg-slate-200 rounded-full" />
+          <div className="h-8 w-3/4 bg-slate-300 rounded-xl" />
+          <div className="h-4 w-1/2 bg-slate-200 rounded-full" />
+        </div>
+
+        {/* Paragraph skeleton */}
+        <div className="space-y-3 pt-6 border-t border-slate-100">
+          <div className="h-4 w-full bg-slate-200 rounded-full" />
+          <div className="h-4 w-11/12 bg-slate-200 rounded-full" />
+          <div className="h-4 w-4/5 bg-slate-200 rounded-full" />
+        </div>
+
+        {/* Code block skeleton */}
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-5 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="h-4 w-24 bg-slate-300 rounded-md" />
+            <div className="h-4 w-12 bg-slate-200 rounded-md" />
+          </div>
+          <div className="font-mono space-y-2 pt-2">
+            <div className="h-3 w-3/4 bg-slate-200 rounded-md" />
+            <div className="h-3 w-1/2 bg-slate-200 rounded-md" />
+            <div className="h-3 w-2/3 bg-slate-200 rounded-md" />
+            <div className="h-3 w-1/3 bg-slate-200 rounded-md" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NoteEditorPage() {
@@ -53,6 +97,10 @@ export default function NoteEditorPage() {
   // Editor state
   const [versionType, setVersionType] = useState<VersionOption>('industry')
   const [contentInputs, setContentInputs] = useState<Record<string, string>>({})
+
+  // Original saved content for dirty-state comparison
+  const [originalContent, setOriginalContent] = useState<Record<string, string>>({})
+
   const [jsonError, setJsonError] = useState('')
 
   // Save state
@@ -95,23 +143,51 @@ export default function NoteEditorPage() {
   // Clear drafts when switching topics
   useEffect(() => {
     setContentInputs({})
+    setOriginalContent({})
   }, [numericTopicId])
 
   // ── Sync textarea when noteData changes ───────────────────────────────────
   useEffect(() => {
     if (!noteData?.versions) return
+
+    const initialInputs: Record<string, string> = {}
+    const initialOriginals: Record<string, string> = {}
+
+    for (const v of AVAILABLE_VERSIONS) {
+      if (noteData.versions[v.id]) {
+        const strVal = JSON.stringify(noteData.versions[v.id], null, 2)
+        initialInputs[v.id] = strVal
+        initialOriginals[v.id] = strVal
+      } else {
+        initialInputs[v.id] = ''
+        initialOriginals[v.id] = ''
+      }
+    }
+
     setContentInputs((prev) => {
-      const next = { ...prev }
-      for (const v of AVAILABLE_VERSIONS) {
-        if (next[v.id] === undefined && noteData.versions[v.id]) {
-          next[v.id] = JSON.stringify(noteData.versions[v.id], null, 2)
+      const merged = { ...prev }
+      for (const key of Object.keys(initialInputs)) {
+        if (merged[key] === undefined) {
+          merged[key] = initialInputs[key]
         }
       }
-      return next
+      return merged
+    })
+
+    setOriginalContent((prev) => {
+      const merged = { ...prev }
+      for (const key of Object.keys(initialOriginals)) {
+        if (merged[key] === undefined) {
+          merged[key] = initialOriginals[key]
+        }
+      }
+      return merged
     })
   }, [noteData])
 
   const contentInput = contentInputs[versionType] ?? ''
+  const savedContent = originalContent[versionType] ?? ''
+  const isDirty = contentInput !== savedContent
 
   // Clear errors when switching versions
   useEffect(() => {
@@ -165,21 +241,35 @@ export default function NoteEditorPage() {
       await createVersion(numericTopicId, versionType, parsed)
       setSaveStatus('success')
       setSaveMessage(`"${versionType}" version saved successfully.`)
-      // Refresh note data to keep version switcher in sync
-      const fresh = await fetchNoteByTopic(numericTopicId)
-      if (fresh?.versions) {
-        for (const key of Object.keys(fresh.versions)) {
-          fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
-        }
-      }
-      setNoteData(fresh)
 
-      if (fresh?.versions?.[versionType]) {
-        setContentInputs((prev) => ({
-          ...prev,
-          [versionType]: JSON.stringify(fresh.versions[versionType], null, 2)
-        }))
+      const savedStr = JSON.stringify(parsed, null, 2)
+
+      // Force refetch to keep local components in sync
+      let fresh = null
+      try {
+        fresh = await fetchNoteByTopic(numericTopicId, true)
+        if (fresh?.versions) {
+          for (const key of Object.keys(fresh.versions)) {
+            fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
+          }
+        }
+        setNoteData(fresh)
+      } catch (err) {
+        console.error('Failed to refetch fresh data:', err)
       }
+
+      const freshStr = fresh?.versions?.[versionType]
+        ? JSON.stringify(fresh.versions[versionType], null, 2)
+        : savedStr
+
+      setContentInputs((prev) => ({
+        ...prev,
+        [versionType]: freshStr
+      }))
+      setOriginalContent((prev) => ({
+        ...prev,
+        [versionType]: freshStr
+      }))
 
       // Auto-clear success message after 4 s
       setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)
@@ -242,79 +332,103 @@ export default function NoteEditorPage() {
               <ArrowLeft size={16} aria-hidden="true" />
             </button>
             <div className="ne-topic-identity">
-              {breadcrumb && <p className="ne-breadcrumb">{breadcrumb}</p>}
-              <h1 className="ne-topic-name">{topicName || <span className="ne-topic-placeholder">Loading…</span>}</h1>
+              {loadingNote ? (
+                <div className="animate-pulse space-y-1.5 py-1">
+                  <div className="h-2.5 w-32 bg-slate-200 rounded-full" />
+                  <div className="h-4 w-48 bg-slate-300 rounded-md" />
+                </div>
+              ) : (
+                <>
+                  {breadcrumb && <p className="ne-breadcrumb">{breadcrumb}</p>}
+                  <h1 className="ne-topic-name">{topicName || <span className="ne-topic-placeholder">Loading…</span>}</h1>
+                </>
+              )}
             </div>
           </div>
 
           {/* Right: version selector + save + publish */}
           <div className="ne-header-right">
-            {noteData?.topic && (
-               <span className={`ne-badge ${noteData.topic.is_published ? 'ne-badge--published' : 'ne-badge--draft'}`}>
-                  {noteData.topic.is_published ? <Globe size={12} /> : <EyeOff size={12} />}
-                  {noteData.topic.is_published ? 'Published' : 'Draft'}
-               </span>
+            {loadingNote ? (
+              <div className="animate-pulse flex items-center gap-2">
+                <div className="h-8 w-24 bg-slate-200 rounded-xl" />
+                <div className="h-8 w-28 bg-slate-200 rounded-xl ml-2" />
+                <div className="h-8 w-20 bg-slate-200 rounded-xl ml-2" />
+              </div>
+            ) : (
+              <>
+                {noteData?.topic && (
+                  <span className={`ne-badge ${noteData.topic.is_published ? 'ne-badge--published' : 'ne-badge--draft'}`}>
+                    {noteData.topic.is_published ? <Globe size={12} /> : <EyeOff size={12} />}
+                    {noteData.topic.is_published ? 'Published' : 'Draft'}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishing || loadingNote || !numericTopicId || !noteData?.topic}
+                  className={`ne-publish-btn ${noteData?.topic?.is_published ? 'ne-publish-btn--published' : ''}`}
+                >
+                  {publishing ? (
+                    <>
+                      <SavingLoader label="Publishing..." />
+                      Publishing…
+                    </>
+                  ) : noteData?.topic?.is_published ? (
+                    <>
+                      <EyeOff size={15} />
+                      Unpublish
+                    </>
+                  ) : (
+                    <>
+                      <Globe size={15} />
+                      Publish
+                    </>
+                  )}
+                </button>
+
+                <label htmlFor="version-select" className="ne-version-label ml-2">Version</label>
+                <select
+                  id="version-select"
+                  value={versionType}
+                  onChange={(e) => setVersionType(e.target.value as VersionOption)}
+                  disabled={saving || loadingNote}
+                  className="ne-version-select"
+                >
+                  {AVAILABLE_VERSIONS.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  id="save-note-btn"
+                  onClick={handleSave}
+                  disabled={saving || loadingNote || !numericTopicId || (!isDirty && !saving) || hasJsonError}
+                  className={`ne-save-btn ${saving ? 'ne-save-btn--saving' : ''} ${(!isDirty && !saving && !loadingNote) ? 'bg-emerald-600/10 border border-emerald-500/20 text-emerald-600 hover:bg-sky-600/10 hover:text-slate-900 cursor-not-allowed opacity-90' : ''}`}
+                  aria-label="Save note content"
+                >
+                  {saving ? (
+                    <>
+                      <SavingLoader label="Saving note" />
+                      Saving…
+                    </>
+                  ) : !isDirty ? (
+                    <>
+                      <CheckCircle2 size={15} aria-hidden="true" className="text-emerald-500" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save size={15} aria-hidden="true" />
+                      Save
+                    </>
+                  )}
+                </button>
+              </>
             )}
-            
-            <button
-              type="button"
-              onClick={handlePublish}
-              disabled={publishing || loadingNote || !numericTopicId || !noteData?.topic}
-              className={`ne-publish-btn ${noteData?.topic?.is_published ? 'ne-publish-btn--published' : ''}`}
-            >
-              {publishing ? (
-                <>
-                  <SavingLoader label="Publishing..." />
-                  Publishing…
-                </>
-              ) : noteData?.topic?.is_published ? (
-                <>
-                  <EyeOff size={15} />
-                  Unpublish
-                </>
-              ) : (
-                <>
-                  <Globe size={15} />
-                  Publish
-                </>
-              )}
-            </button>
-
-            <label htmlFor="version-select" className="ne-version-label ml-2">Version</label>
-            <select
-              id="version-select"
-              value={versionType}
-              onChange={(e) => setVersionType(e.target.value as VersionOption)}
-              disabled={saving || loadingNote}
-              className="ne-version-select"
-            >
-              {AVAILABLE_VERSIONS.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              id="save-note-btn"
-              onClick={handleSave}
-              disabled={saving || loadingNote || !numericTopicId || hasJsonError}
-              className={`ne-save-btn${saving ? ' ne-save-btn--saving' : ''}`}
-              aria-label="Save note content"
-            >
-              {saving ? (
-                <>
-                  <SavingLoader label="Saving note" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Save size={15} aria-hidden="true" />
-                  Save
-                </>
-              )}
-            </button>
           </div>
         </div>
 
@@ -334,7 +448,7 @@ export default function NoteEditorPage() {
       <div className="ne-body">
 
         {/* Loading state */}
-        {loadingNote && <PrimaryLoader className="ne-loader" label="Loading note content" />}
+        {loadingNote && <EditorSkeleton />}
 
         {/* Load error */}
         {!loadingNote && loadError && (
@@ -354,12 +468,12 @@ export default function NoteEditorPage() {
           <div className="ne-vertical-layout">
 
             <div className="ne-view-toggle">
-              <button 
+              <button
                 type="button"
                 className={`ne-view-toggle-btn ${viewMode === 'editor' ? 'ne-view-toggle-btn--active' : ''}`}
                 onClick={() => setViewMode('editor')}
               >Editor</button>
-              <button 
+              <button
                 type="button"
                 className={`ne-view-toggle-btn ${viewMode === 'preview' ? 'ne-view-toggle-btn--active' : ''}`}
                 onClick={() => setViewMode('preview')}
@@ -372,8 +486,8 @@ export default function NoteEditorPage() {
               </div>
             )}
 
-            <section 
-              className="ne-pane ne-pane--editor" 
+            <section
+              className="ne-pane ne-pane--editor"
               aria-label="JSON content editor"
               style={{ display: viewMode === 'editor' ? 'block' : 'none' }}
             >
@@ -390,14 +504,15 @@ export default function NoteEditorPage() {
                 aria-describedby={hasJsonError ? 'json-error-msg' : undefined}
               />
             </section>
-            
-            <section 
-              className="ne-pane ne-pane--preview" 
+
+            <section
+              className="ne-pane ne-pane--preview"
               aria-label="Live content preview"
               style={{ display: viewMode === 'preview' ? 'block' : 'none' }}
             >
               <div className="ne-preview-scroll">
                 {parsedPreview ? (
+                  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
                   <NoteContent version={parsedPreview as Record<string, any>} />
                 ) : hasJsonError && contentInput.trim() ? (
                   <div className="ne-preview-empty ne-preview-empty--error">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { ChevronRight, Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { CurriculumNode } from '../types'
 import { SavingLoader } from './Loader'
@@ -40,7 +40,7 @@ const NODE_TYPE_META: Record<NodeType, { label: string; pill: string; childType:
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function resolveNodeType(node: CurriculumNode): NodeType {
-  const nt = node.node_type ?? (node as any).type
+  const nt = node.node_type ?? (node as unknown as { type?: NodeType }).type
   if (nt === 'section' || nt === 'topic' || nt === 'subtopic') return nt
   // Fallback: infer from depth
   return node.parent_id === null ? 'section' : 'topic'
@@ -62,7 +62,7 @@ function collectOpenState(
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function CurriculumTree({
+const CurriculumTree = memo(function CurriculumTree({
   nodes,
   selectedId,
   onSelect,
@@ -80,6 +80,7 @@ export default function CurriculumTree({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded((cur) => collectOpenState(nodes, cur))
   }, [nodes])
 
@@ -388,4 +389,6 @@ export default function CurriculumTree({
       )}
     </div>
   )
-}
+})
+
+export default CurriculumTree
