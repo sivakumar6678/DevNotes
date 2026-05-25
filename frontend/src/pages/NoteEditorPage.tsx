@@ -489,7 +489,7 @@ export default function NoteEditorPage() {
             <section
               className="ne-pane ne-pane--editor"
               aria-label="JSON content editor"
-              style={{ display: viewMode === 'editor' ? 'block' : 'none' }}
+              style={{ display: viewMode === 'editor' ? 'flex' : 'none' }}
             >
               <textarea
                 id="json-editor"
@@ -508,7 +508,7 @@ export default function NoteEditorPage() {
             <section
               className="ne-pane ne-pane--preview"
               aria-label="Live content preview"
-              style={{ display: viewMode === 'preview' ? 'block' : 'none' }}
+              style={{ display: viewMode === 'preview' ? 'flex' : 'none' }}
             >
               <div className="ne-preview-scroll">
                 {parsedPreview ? (
