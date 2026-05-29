@@ -196,7 +196,15 @@ Format:
 "description": ""
 }
 
----
+INDUSTRY VERSION RULES FOR THIS SECTION:
+* Focus on WHY and WHERE — industry usage, business context, production scenarios
+* Explain which companies, frameworks, or libraries use this concept and why
+* Keep descriptions text-heavy — prioritize explanation over code
+* Do NOT include large code blocks — code belongs in syntax, code_example, and practical_example sections
+* If a minimal code snippet is absolutely essential, keep it under 5 lines
+* Think "senior developer explaining to a team lead" not "tutorial with step-by-step examples"
+* Each example should answer: "Why does this matter in production?"
+
 
 ## common_mistakes
 
@@ -576,6 +584,7 @@ export default function PromptGuide() {
   const [copied, setCopied] = useState(false)
 
   const activePrompt = PROMPTS[activeVersion].prompt
+  const lineCount = activePrompt.split('\n').length
 
   const handleCopy = async () => {
     try {
@@ -588,52 +597,113 @@ export default function PromptGuide() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-6">
-      <h1 className="text-2xl font-bold text-slate-900 mb-2">AI Prompt by Version</h1>
-      <p className="text-slate-600 mb-6 leading-relaxed">
-        Select a version below to get the optimized AI prompt. Copy the template, replace the bracketed <code>[TOPIC]</code> placeholder, and paste it along with your raw content into your preferred LLM.
-      </p>
+    <div className="max-w-5xl mx-auto py-8 px-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">AI Prompt Templates</h1>
+        <p className="text-slate-500 text-sm leading-relaxed">
+          Select a version type, copy the optimized prompt, and paste it with your raw content into any LLM.
+        </p>
+      </div>
 
+      {/* Version Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
         {Object.entries(PROMPTS).map(([id, config]) => (
           <button
             key={id}
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${activeVersion === id
-              ? 'bg-orange-50 border-brand-orange text-brand-orange'
-              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all ${activeVersion === id
+              ? 'bg-brand-orange text-white border-brand-orange shadow-sm'
+              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
               }`}
-            onClick={() => setActiveVersion(id)}
+            onClick={() => { setActiveVersion(id); setCopied(false) }}
           >
             {config.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Prompt Template</span>
+      {/* Prompt Viewer Card */}
+      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-[#0b1120]">
+        {/* Card Header */}
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-700/40 bg-[rgba(15,23,42,0.6)]">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prompt Template</span>
+            <span className="rounded-full bg-brand-orange/15 px-2.5 py-0.5 text-[11px] font-semibold text-orange-400 tracking-wide">
+              {PROMPTS[activeVersion].label}
+            </span>
+            <span className="text-[11px] text-slate-500 tabular-nums">{lineCount} lines</span>
+          </div>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            className="code-block__copy"
           >
-            {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
             {copied ? 'Copied!' : 'Copy Prompt'}
           </button>
         </div>
-        <div className="p-4 bg-slate-900 overflow-x-auto text-sm">
-          <pre className="text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-            <code>{activePrompt}</code>
+
+        {/* Code Area with Line Numbers */}
+        <div className="overflow-auto max-h-[70vh]">
+          <pre
+            className="m-0 py-4 text-[13px] leading-relaxed"
+            style={{ fontFamily: "'JetBrains Mono', 'SFMono-Regular', monospace" }}
+          >
+            <code className="flex flex-col">
+              {activePrompt.split('\n').map((line, i) => {
+                const isSeparator = line.trim() === '---'
+                return (
+                  <span
+                    key={i}
+                    className={`flex px-4 min-h-[1.7em] hover:bg-slate-800/30 ${isSeparator ? 'my-1' : ''}`}
+                  >
+                    <span
+                      className="inline-block w-[3ch] mr-5 text-right text-slate-600 select-none text-xs"
+                      aria-hidden="true"
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 whitespace-pre-wrap">
+                      {isSeparator ? (
+                        <span className="block h-px my-2 bg-slate-700/50" />
+                      ) : line.startsWith('#') ? (
+                        <span className="text-orange-400 font-semibold">{line}</span>
+                      ) : line.startsWith('*') || line.startsWith('-') ? (
+                        <span className="text-slate-300">{line}</span>
+                      ) : line.match(/^[A-Z][A-Z_]+/) ? (
+                        <span className="text-[#c792ea]">{line}</span>
+                      ) : line.startsWith('"') ? (
+                        <span className="text-[#c3e88d]">{line}</span>
+                      ) : (
+                        <span className="text-slate-400">{line}</span>
+                      )}
+                    </span>
+                  </span>
+                )
+              })}
+            </code>
           </pre>
         </div>
       </div>
 
-      <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-5">
-        <h3 className="text-sm font-bold text-blue-900 mb-2">Tips for success</h3>
-        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
-          <li>Make sure to replace <code>[TOPIC]</code> with the actual topic name.</li>
-          <li>Append your raw notes or documentation directly at the end of the prompt.</li>
-          <li>If the AI adds markdown blocks (like <code>\`\`\`json</code>), just copy the content inside the block.</li>
+      {/* Tips Card */}
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+        <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <span aria-hidden="true">💡</span> Tips for success
+        </h3>
+        <ul className="space-y-2 text-sm text-slate-600">
+          <li className="flex items-start gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-orange flex-shrink-0" />
+            Append your raw notes or documentation directly at the end of the prompt.
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-orange flex-shrink-0" />
+            If the AI returns markdown fences (<code className="inline-code">```json</code>), copy only the JSON inside.
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-orange flex-shrink-0" />
+            For large topics, ask the AI to confirm all 12 schema keys are present before finishing.
+          </li>
         </ul>
       </div>
     </div>

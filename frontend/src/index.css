@@ -133,6 +133,33 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Inline Content Hierarchy — Label detection & inline code
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.inline-label {
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.inline-code {
+  font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
+  font-size: 0.9em;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Section dividers (visual rhythm between content sections) ──────────── */
+
+.group\/section + .group\/section {
+  padding-top: 2rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Note Editor Page — scoped BEM-ish component styles
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -735,11 +762,180 @@ button {
   border-color: #6ee7b7;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Code Blocks — Material Palenight Theme
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.code-block {
+  margin: 1.5rem 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  background: #0b1120;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.code-block__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.code-block__title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.code-block__lang {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: rgba(51, 65, 85, 0.3);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.code-block__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  background: rgba(30, 41, 59, 0.6);
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.code-block__copy:hover {
+  background: rgba(51, 65, 85, 0.6);
+  border-color: rgba(100, 116, 139, 0.6);
+  color: #e2e8f0;
+}
+
+.code-block__body {
+  overflow-x: auto;
+}
+
+.code-block__pre {
+  margin: 0;
+  padding: 1rem 0;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+.code-block__code {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-block__line {
+  display: flex;
+  padding: 0 1rem;
+  min-height: 1.7em;
+}
+.code-block__line:hover {
+  background: rgba(51, 65, 85, 0.15);
+}
+
+.code-block__line-num {
+  display: inline-block;
+  width: 3ch;
+  margin-right: 1.25rem;
+  text-align: right;
+  color: #334155;
+  user-select: none;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.code-block__line-content {
+  flex: 1;
+  white-space: pre;
+}
+
+/* ── Syntax token colors (Material Palenight) ────────────────────────────── */
+
+.tok-keyword  { color: #c792ea; }
+.tok-string   { color: #c3e88d; }
+.tok-comment  { color: #546e7a; font-style: italic; }
+.tok-function { color: #82aaff; }
+.tok-number   { color: #f78c6c; }
+.tok-operator { color: #89ddff; }
+.tok-tag      { color: #f07178; }
+.tok-attr     { color: #ffcb6b; }
+.tok-property { color: #f07178; }
+.tok-default  { color: #eeffff; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Diagram Blocks
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 pre.diagram {
   white-space: pre;
-  font-family: monospace;
-  background: #f4f4f4;
-  padding: 1rem;
-  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: #f8fafc;
+  color: #334155;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
   overflow-x: auto;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Callout Blocks
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.callout {
+  display: flex;
+  gap: 0.75rem;
+  border-radius: 0 0.75rem 0.75rem 0;
+  border-left-width: 4px;
+  border-left-style: solid;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #1e293b;
+}
+.callout__icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  margin-top: 0.125rem;
+}
+.callout__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.callout--tip {
+  border-left-color: #22c55e;
+  background: #f0fdf4;
+}
+.callout--warning {
+  border-left-color: #eab308;
+  background: #fefce8;
+}
+.callout--info {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
 }

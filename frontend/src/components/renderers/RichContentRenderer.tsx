@@ -136,19 +136,13 @@ export const RichContentRenderer = memo(function RichContentRenderer({
               )
             }
             case 'callout': {
-              const borderColors = {
-                tip: 'border-green-500',
-                warning: 'border-yellow-500',
-                info: 'border-blue-500',
-              }
-              const bgColors = {
-                tip: 'bg-green-50',
-                warning: 'bg-yellow-50',
-                info: 'bg-blue-50',
-              }
+              const icons: Record<string, string> = { tip: '💡', warning: '⚠️', info: 'ℹ️' }
               return (
-                <div key={index} className={`rounded-r-xl border-l-4 p-4 text-slate-800 text-sm leading-6 ${borderColors[block.variant]} ${bgColors[block.variant]}`}>
-                  {renderInlineMarkdown(typeof block.content === 'string' ? block.content : '')}
+                <div key={index} className={`callout callout--${block.variant}`}>
+                  <span className="callout__icon" aria-hidden="true">{icons[block.variant] ?? 'ℹ️'}</span>
+                  <span className="callout__text">
+                    {renderInlineMarkdown(typeof block.content === 'string' ? block.content : '')}
+                  </span>
                 </div>
               )
             }
