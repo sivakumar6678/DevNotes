@@ -1,3 +1,5 @@
+import { usePageTitle } from '../hooks/usePageTitle'
+
 const sections = [
   {
     title: 'What this platform is',
@@ -22,6 +24,7 @@ const sections = [
 ]
 
 export default function About() {
+  usePageTitle('About')
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 lg:px-6">
       <section className="brand-panel p-8">

@@ -310,7 +310,7 @@ export default function NoteEditorPage() {
   // ── Derived ───────────────────────────────────────────────────────────────
   const topicName = noteData?.topic?.name ?? (loadingNote ? '' : `Topic #${topicId}`)
   const breadcrumb = noteData?.topic?.breadcrumb ?? ''
-  const isSubtopic = noteData?.topic?.type === 'topic' // backend sends type='topic' for subtopic-level
+  const isSubtopic = noteData?.topic?.type === 'subtopic' || (noteData?.topic as Record<string, unknown>)?.node_type === 'subtopic'
   const hasJsonError = Boolean(jsonError)
 
   // ─────────────────────────────────────────────────────────────────────────

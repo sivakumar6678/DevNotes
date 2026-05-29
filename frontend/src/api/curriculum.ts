@@ -1,6 +1,6 @@
 import type { CurriculumNode, TopicNoteData, TopicPayload, Technology } from '../types'
 import { apiFetch } from './auth'
-import { curriculumCache } from '../cache/curriculumCache'
+import { curriculumCache } from '../utils/curriculumCache'
 
 // ─── Technologies ─────────────────────────────────────────────────────────────
 

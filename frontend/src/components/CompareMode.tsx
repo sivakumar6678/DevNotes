@@ -11,7 +11,7 @@ const VERSION_LABELS: Record<string, string> = {
 }
 
 interface CompareModeProps {
-  versions: Record<string, any>
+  versions: Record<string, Record<string, unknown>>
   leftVersion: string
   rightVersion: string
   availableVersions: string[]

@@ -1,6 +1,6 @@
-import { BookOpen, Code2, GitCompareArrows, Lightbulb, RotateCcw, Wifi, Zap } from 'lucide-react'
+import { BookOpen, Code2, GitCompareArrows, Lightbulb, RotateCcw, Wifi, Zap, type LucideIcon } from 'lucide-react'
 
-const VERSION_META: Record<string, { label: string; icon: React.FC<any>; desc: string }> = {
+const VERSION_META: Record<string, { label: string; icon: LucideIcon; desc: string }> = {
   simple: {
     label: 'Simple',
     icon: Lightbulb,

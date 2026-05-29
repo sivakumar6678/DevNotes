@@ -95,7 +95,8 @@ export interface TopicNoteData {
     name: string
     slug: string
     technology_id: number
-    type: 'technology' | 'module' | 'topic'
+    type: string
+    node_type?: 'section' | 'topic' | 'subtopic'
     breadcrumb: string
     is_published: boolean
     sort_order: number

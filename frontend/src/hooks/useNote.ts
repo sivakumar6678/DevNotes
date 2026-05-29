@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_VERSION } from '../constants'
 import { getNote } from '../api/notesApi'
-import { getCachedNote, setCachedNote } from '../store/noteCache'
+import { getCachedNote, setCachedNote } from '../utils/noteCache'
 import type { NoteDetailResponse } from '../types'
 
 export async function preloadNote(slug: string, version: string = DEFAULT_VERSION): Promise<void> {

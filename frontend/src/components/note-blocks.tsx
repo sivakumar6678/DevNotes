@@ -2,34 +2,11 @@ import { memo } from 'react'
 import type { ReactNode } from 'react'
 import type { NoteCodeItem, NoteConceptItem, NoteExampleItem } from './noteContentSchema'
 import { RichContentRenderer } from './renderers/RichContentRenderer'
+import { renderInlineMarkdown } from '../utils/renderInlineMarkdown'
 
 // ---------------------------------------------------------------------------
 // Inline helpers (module-level, never re-created)
 // ---------------------------------------------------------------------------
-
-function renderInlineMarkdown(text: string): ReactNode[] {
-  const tokens = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean)
-
-  return tokens.map((token, index) => {
-    if (token.startsWith('**') && token.endsWith('**')) {
-      return (
-        <strong key={index} className="font-semibold text-slate-950">
-          {token.slice(2, -2)}
-        </strong>
-      )
-    }
-
-    if (token.startsWith('`') && token.endsWith('`')) {
-      return (
-        <code key={index} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.95em] text-slate-900">
-          {token.slice(1, -1)}
-        </code>
-      )
-    }
-
-    return token
-  })
-}
 
 function getIndentLevel(line: string): number {
   const match = line.match(/^(\s+)/)
@@ -249,10 +226,10 @@ export const ListBlock = memo(function ListBlock({ items }: { items: string[] })
 
 export const ConceptBlock = memo(function ConceptBlock({ items }: { items: NoteConceptItem[] }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       {items.map((item, index) => (
-        <div key={`${item.name || 'concept'}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-5 py-4">
-          {item.name ? <h3 className="text-base font-semibold text-slate-950">{renderInlineMarkdown(item.name)}</h3> : null}
+        <div key={`${item.name || 'concept'}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-6">
+          {item.name ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.name)}</h3> : null}
           {item.explanation ? (
             <div className="mt-3 space-y-4">
               {typeof item.explanation === 'object' && item.explanation !== null && (item.explanation as any).type === 'rich' ? (
@@ -270,11 +247,11 @@ export const ConceptBlock = memo(function ConceptBlock({ items }: { items: NoteC
 
 export const ExampleBlock = memo(function ExampleBlock({ items }: { items: NoteExampleItem[] }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {items.map((item, index) => (
         <div
           key={`${item.title || item.question || 'example'}-${index}`}
-          className="rounded-2xl border border-slate-200 bg-slate-50/70 px-5 py-5"
+          className="rounded-2xl border border-slate-200 bg-slate-50/70 px-6 py-6"
         >
           {item.title ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.title)}</h3> : null}
           {item.question ? <h3 className="text-lg font-semibold text-slate-950">{renderInlineMarkdown(item.question)}</h3> : null}
@@ -324,7 +301,7 @@ const HeadingBlock = memo(function HeadingBlock({ id, title }: { id: string; tit
   return (
     <h2
       id={id}
-      className="scroll-mt-28 font-display text-2xl font-semibold tracking-tight text-slate-900 group-hover/section:text-brand-orange transition-colors"
+      className="scroll-mt-28 font-display text-3xl font-bold tracking-tight text-slate-900 group-hover/section:text-brand-orange transition-colors"
     >
       <a href={`#${id}`} className="hover:underline">
         {title}
@@ -406,7 +383,7 @@ export const SectionBlock = memo(function SectionBlock({
     <section>
       <SectionShell>
         <HeadingBlock id={id} title={title} />
-        <div className="mt-5">{children}</div>
+        <div className="mt-6">{children}</div>
       </SectionShell>
     </section>
   )

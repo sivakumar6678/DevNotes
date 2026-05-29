@@ -1,12 +1,15 @@
-import { memo, useState } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { DEFAULT_VERSION } from '../constants'
 import VersionTabs from '../components/VersionTabs'
 import NoteContent from '../components/NoteContent'
 import CompareMode from '../components/CompareMode'
 import TableOfContents from '../components/TableOfContents'
+import TopicNavigation from '../components/TopicNavigation'
 import { InlineLoader } from '../components/Loader'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useNote } from '../hooks/useNote'
+import { useAdjacentTopics } from '../hooks/useAdjacentTopics'
 import NotFound from './NotFound'
 
 /**
@@ -19,10 +22,19 @@ import NotFound from './NotFound'
 const NoteTopicContent = memo(function NoteTopicContent() {
   const { slug } = useParams()
   const { note, loading, isTransitioning, error, version, setVersion } = useNote(slug)
+  usePageTitle(note?.title)
+  const { prev, next } = useAdjacentTopics(slug)
 
   const [compareMode, setCompareMode] = useState(false)
   const [compareLeft, setCompareLeft] = useState('simple')
   const [compareRight, setCompareRight] = useState(DEFAULT_VERSION)
+
+  // Issue 3: Topic Change Should Automatically Scroll Content To Top
+  useEffect(() => {
+    if (slug) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [slug])
 
   if (error && !note) {
     return (
@@ -100,6 +112,9 @@ const NoteTopicContent = memo(function NoteTopicContent() {
                 <div className="pt-8">
                   <NoteContent version={content} />
                 </div>
+
+                {/* Sequential topic navigation */}
+                <TopicNavigation prev={prev} next={next} />
               </div>
             </div>
           )}

@@ -3,11 +3,13 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiLogin } from '../api/auth'
 import { SavingLoader } from '../components/Loader'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useAuth } from '../context/AuthContext'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginPage() {
+  usePageTitle('Login')
   const navigate = useNavigate()
   const { login } = useAuth()
   const [email, setEmail] = useState('')

@@ -150,7 +150,7 @@ export default memo(function NoteContent({ version = {} }: { version?: Record<st
   }
 
   return (
-    <article className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6">
+    <article className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-12">
       {allSections.map((section) => (
         <NoteSection key={section.key} section={section} version={normalizedVersion as Record<string, unknown>} />
       ))}

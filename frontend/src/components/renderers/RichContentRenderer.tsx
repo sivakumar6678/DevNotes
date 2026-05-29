@@ -1,31 +1,7 @@
 import { memo } from 'react'
-import type { ReactNode } from 'react'
 import type { FieldContent, RichContent, TableBlock } from '../../types/richContent'
 import { StructuredTextBlock } from '../note-blocks'
-
-function renderInlineMarkdown(text: string): ReactNode[] {
-  const tokens = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean)
-
-  return tokens.map((token, index) => {
-    if (token.startsWith('**') && token.endsWith('**')) {
-      return (
-        <strong key={index} className="font-semibold text-slate-950">
-          {token.slice(2, -2)}
-        </strong>
-      )
-    }
-
-    if (token.startsWith('`') && token.endsWith('`')) {
-      return (
-        <code key={index} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.95em] text-slate-900">
-          {token.slice(1, -1)}
-        </code>
-      )
-    }
-
-    return token
-  })
-}
+import { renderInlineMarkdown } from '../../utils/renderInlineMarkdown'
 
 const TableRenderer = memo(function TableRenderer({ block }: { block: TableBlock }) {
   if (!block || !Array.isArray(block.rows) || block.rows.length === 0) {

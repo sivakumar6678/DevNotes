@@ -14,7 +14,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { curriculumCache } from '../cache/curriculumCache'
+import { curriculumCache } from '../utils/curriculumCache'
 import {
   fetchCurriculum,
   fetchCurriculumAdmin,

@@ -1,5 +1,5 @@
 import { DEFAULT_VERSION } from '../constants'
-import { getCachedNote, setCachedNote } from '../store/noteCache'
+import { getCachedNote, setCachedNote } from '../utils/noteCache'
 import type { NoteDetailResponse } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTopics } from '../api/api'
 import { DEFAULT_VERSION } from '../constants'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { preloadNote } from '../hooks/useNote'
 import { PrimaryLoader } from '../components/Loader'
 import type { Topic } from '../types'
@@ -283,6 +284,7 @@ export default function Topics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const techName = formatHeading(techSlug)
+  usePageTitle(techName)
 
   useEffect(() => {
     let cancelled = false

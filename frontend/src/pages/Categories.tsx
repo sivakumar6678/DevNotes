@@ -1,2 +1,5 @@
-// This file has been removed as part of the navigation cleanup.
-// All categories navigation now redirects to /technologies
+import { Navigate } from 'react-router-dom'
+
+export default function Categories() {
+  return <Navigate to="/technologies" replace />
+}

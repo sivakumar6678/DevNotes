@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { fetchCurriculum } from '../api/curriculum'
 import { DEFAULT_VERSION } from '../constants'
-import { curriculumCache } from '../cache/curriculumCache'
+import { curriculumCache } from '../utils/curriculumCache'
 import { useCurriculum } from '../context/CurriculumContext'
 import { preloadNote } from '../hooks/useNote'
 import { InlineLoader } from './Loader'
@@ -136,6 +136,7 @@ const Sidebar = memo(function Sidebar() {
 
   const [sidebarTechId, setSidebarTechId] = useState<number | null>(null)
   const [openItems, setOpenItems] = useState<Set<string>>(new Set())
+  const [filterQuery, setFilterQuery] = useState('')
 
   const publishedTechs = useMemo(
     () => technologies.filter((tech) => tech.is_published),
@@ -283,10 +284,28 @@ const Sidebar = memo(function Sidebar() {
     })
   }, [])
 
+  /** Recursively filter the tree so only nodes whose name matches (or have matching descendants) remain. */
+  function filterTree(nodes: CurriculumNode[], query: string): CurriculumNode[] {
+    if (!query.trim()) return nodes
+    const lower = query.toLowerCase()
+
+    return nodes.reduce<CurriculumNode[]>((acc, node) => {
+      const nameMatches = node.name.toLowerCase().includes(lower)
+      const filteredChildren = filterTree(node.children, query)
+
+      if (nameMatches || filteredChildren.length > 0) {
+        acc.push({ ...node, children: nameMatches ? node.children : filteredChildren })
+      }
+
+      return acc
+    }, [])
+  }
+
+  const displayTree = useMemo(() => filterTree(publicTree, filterQuery), [publicTree, filterQuery])
+
   const nav = (
-    <div className="flex h-full flex-col overflow-hidden">
-      {publishedTechs.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+      <div className="mb-3 flex flex-wrap gap-1.5">
           {publishedTechs.map((tech) => (
             <button
               key={tech.id}
@@ -302,7 +321,18 @@ const Sidebar = memo(function Sidebar() {
             </button>
           ))}
         </div>
-      )}
+
+      {/* Search / filter input */}
+      <div className="mb-3 relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          placeholder="Filter topics…"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:outline-none transition"
+        />
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         {publicTreeLoading ? (
@@ -323,7 +353,7 @@ const Sidebar = memo(function Sidebar() {
           </div>
         ) : (
           <ul className="space-y-0.5">
-            {publicTree.map((node) => (
+            {displayTree.map((node) => (
               <TreeItem
                 key={node.id}
                 node={node}
@@ -351,9 +381,9 @@ const Sidebar = memo(function Sidebar() {
       </details>
 
       <aside className="hidden w-[260px] shrink-0 lg:block">
-        <div className="sticky top-36 max-h-[calc(100vh-10rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            Knowledge Base
+        <div className="sticky top-36 flex flex-col max-h-[calc(100vh-10rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+          <p className="mb-3 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            Curriculum
           </p>
           {nav}
         </div>

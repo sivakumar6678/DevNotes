@@ -32,8 +32,9 @@ export default function ManageUsers() {
     try {
       await approveUser(userId)
       setUsers(users.map(u => u.id === userId ? { ...u, status: 'approved' } : u))
+      setError('')
     } catch (err) {
-      alert('Failed to approve user')
+      setError(err instanceof Error ? err.message : 'Failed to approve user.')
     }
   }
 
@@ -41,8 +42,9 @@ export default function ManageUsers() {
     try {
       await rejectUser(userId)
       setUsers(users.map(u => u.id === userId ? { ...u, status: 'rejected' } : u))
+      setError('')
     } catch (err) {
-      alert('Failed to reject user')
+      setError(err instanceof Error ? err.message : 'Failed to reject user.')
     }
   }
 

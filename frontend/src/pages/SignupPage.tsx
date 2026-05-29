@@ -3,10 +3,12 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { apiSignup } from '../api/auth'
 import { SavingLoader } from '../components/Loader'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function SignupPage() {
+  usePageTitle('Sign Up')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
