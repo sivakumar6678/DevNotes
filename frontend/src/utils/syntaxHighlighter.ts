@@ -125,12 +125,6 @@ function tokenizeHTML(code: string): SyntaxToken[] {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const CSS_KEYWORDS = new Set([
-  'important', 'inherit', 'initial', 'unset', 'none', 'auto', 'solid', 'block',
-  'inline', 'flex', 'grid', 'absolute', 'relative', 'fixed', 'sticky',
-  'hidden', 'visible', 'scroll', 'center', 'left', 'right', 'top', 'bottom',
-])
-
 const CSS_PATTERN = /\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|#[0-9a-fA-F]{3,8}\b|\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|s|ms|deg|fr)?|[a-zA-Z-]+(?=\s*:)|@[a-zA-Z-]+|[.#][\w-]+|[{}();:,>~+*]/g
 
 function tokenizeCSS(code: string): SyntaxToken[] {
@@ -251,7 +245,6 @@ function tokenizeJSON(code: string): SyntaxToken[] {
 
     if (text.startsWith('"') && /"\s*$/.test(text) && text.trimEnd().endsWith('"')) {
       // Could be a key (if matched with lookahead for :) or a value
-      const trimmed = text.trimEnd()
       const charAfter = code[(match.index ?? 0) + text.length]
       if (charAfter === ':') {
         type = 'property'

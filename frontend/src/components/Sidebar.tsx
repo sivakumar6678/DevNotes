@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, Search, X } from 'lucide-react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { fetchCurriculum } from '../api/curriculum'
 import { DEFAULT_VERSION } from '../constants'
@@ -9,10 +9,14 @@ import { preloadNote } from '../hooks/useNote'
 import { InlineLoader } from './Loader'
 import type { CurriculumNode } from '../types'
 
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+
 function hasActiveDescendant(item: CurriculumNode, activeSlug: string): boolean {
-  return item.children?.some(
-    (child) => child.slug === activeSlug || hasActiveDescendant(child, activeSlug),
-  ) ?? false
+  return (
+    item.children?.some(
+      (child) => child.slug === activeSlug || hasActiveDescendant(child, activeSlug),
+    ) ?? false
+  )
 }
 
 function treeContainsSlug(nodes: CurriculumNode[], activeSlug: string): boolean {
@@ -26,25 +30,31 @@ function findAncestorSlugs(
 ): string[] {
   for (const node of nodes) {
     const nextPath = node.slug ? [...path, node.slug] : path
-
-    if (node.slug === targetSlug) {
-      return path
-    }
-
+    if (node.slug === targetSlug) return path
     if (node.children.length > 0) {
       const found = findAncestorSlugs(node.children, targetSlug, nextPath)
-      if (found.length) {
-        return found
-      }
+      if (found.length) return found
     }
   }
-
   return []
 }
 
+function collectLeaves(nodes: CurriculumNode[]): string[] {
+  const result: string[] = []
+  function walk(items: CurriculumNode[]) {
+    for (const n of items) {
+      if (n.node_type === 'subtopic' && n.children.length === 0) result.push(n.slug)
+      if (n.children.length > 0) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return result
+}
+
+// ─── TreeItem ─────────────────────────────────────────────────────────────────
+
 interface TreeItemProps {
   node: CurriculumNode
-  depth: number
   activeSlug: string
   isOpen: boolean
   isItemOpen: (slug: string) => boolean
@@ -53,7 +63,6 @@ interface TreeItemProps {
 
 const TreeItem = memo(function TreeItem({
   node,
-  depth,
   activeSlug,
   isOpen,
   isItemOpen,
@@ -64,61 +73,114 @@ const TreeItem = memo(function TreeItem({
   const hasDescendant = !isActive && hasActiveDescendant(node, activeSlug)
   const hasChildren = node.children.length > 0
 
-  const pl = ['pl-3', 'pl-6', 'pl-9'][Math.min(depth, 2)]
-  const textSize = depth === 0 ? 'text-[0.95rem]' : 'text-[0.90rem]'
-  const textWeight = depth === 0 ? 'font-semibold' : 'font-medium'
+  // ── Section: chapter-level heading with separator line ────────────────────
+  if (node.node_type === 'section') {
+    return (
+      <li className="mt-5 first:mt-1">
+        <button
+          type="button"
+          onClick={() => onToggle(node.slug)}
+          aria-expanded={isOpen}
+          className="sidebar-section-btn"
+        >
+          <span className="sidebar-section-label">{node.name}</span>
+          <span className="sidebar-section-rule" aria-hidden="true" />
+          <ChevronRight
+            className={`sidebar-section-chevron ${isOpen ? 'rotate-90' : ''}`}
+          />
+        </button>
+        {isOpen && hasChildren && (
+          <ul className="mt-1 space-y-0.5">
+            {node.children.map((child) => (
+              <TreeItem
+                key={child.id}
+                node={child}
+                activeSlug={activeSlug}
+                isOpen={child.slug ? isItemOpen(child.slug) : false}
+                isItemOpen={isItemOpen}
+                onToggle={onToggle}
+              />
+            ))}
+          </ul>
+        )}
+      </li>
+    )
+  }
 
+  // ── Topic: collapsible group with ancestor-active indicator ───────────────
+  if (node.node_type === 'topic') {
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={() => onToggle(node.slug)}
+          aria-expanded={isOpen}
+          className={`sidebar-topic-btn ${hasDescendant ? 'sidebar-topic-btn--active' : ''}`}
+        >
+          <ChevronRight
+            className={`sidebar-topic-chevron ${isOpen ? 'rotate-90' : ''} ${
+              hasDescendant ? 'text-brand-orange/70' : ''
+            }`}
+          />
+          <span className={`sidebar-topic-name ${hasDescendant ? 'text-slate-900' : ''}`}>
+            {node.name}
+          </span>
+          {hasDescendant && (
+            <span className="sidebar-topic-pip" aria-hidden="true" />
+          )}
+        </button>
+        {isOpen && hasChildren && (
+          <ul className="sidebar-topic-children">
+            {node.children.map((child) => (
+              <TreeItem
+                key={child.id}
+                node={child}
+                activeSlug={activeSlug}
+                isOpen={child.slug ? isItemOpen(child.slug) : false}
+                isItemOpen={isItemOpen}
+                onToggle={onToggle}
+              />
+            ))}
+          </ul>
+        )}
+      </li>
+    )
+  }
+
+  // ── Subtopic: navigable leaf ───────────────────────────────────────────────
   return (
     <li>
-      <div
-        className={`group flex items-center gap-2 rounded-lg py-2 pr-3 transition-all duration-200 ease-in-out cursor-pointer ${pl} ${
-          isActive
-            ? 'bg-brand-orangeSoft text-brand-orange font-bold shadow-sm ring-1 ring-brand-orange/20'
-            : `text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm ${textWeight}`
-        }`}
-        onClick={!isLeaf && node.slug ? () => onToggle(node.slug) : undefined}
-      >
-        {isLeaf ? (
-          <NavLink
-            to={`/notes/${node.slug}`}
-            onMouseEnter={() => preloadNote(node.slug, DEFAULT_VERSION)}
-            className={`flex-1 truncate block w-full outline-none ${textSize}`}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            {node.name}
-          </NavLink>
-        ) : (
-          <div className="flex flex-1 items-center gap-1.5 truncate text-left w-full outline-none">
-            {isOpen || hasDescendant ? (
-              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
-            ) : (
-              <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${isActive ? 'text-brand-orange' : 'text-slate-400 group-hover:text-slate-600'}`} />
-            )}
-            <span className={`truncate ${textSize} ${isActive ? 'text-brand-orange' : 'text-slate-800'}`}>
-              {node.name}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {hasChildren && (isOpen || hasDescendant) && (
-        <ul className="ml-1 mt-1 space-y-1 border-l-2 border-slate-100/80 pl-1">
-          {node.children.map((child) => (
-            <TreeItem
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              activeSlug={activeSlug}
-              isOpen={child.slug ? isItemOpen(child.slug) : false}
-              isItemOpen={isItemOpen}
-              onToggle={onToggle}
-            />
-          ))}
-        </ul>
+      {isLeaf ? (
+        <NavLink
+          to={`/notes/${node.slug}`}
+          onMouseEnter={() => preloadNote(node.slug, DEFAULT_VERSION)}
+          aria-current={isActive ? 'page' : undefined}
+          className={({ isActive: navActive }) =>
+            `sidebar-leaf ${navActive ? 'sidebar-leaf--active' : 'sidebar-leaf--idle'}`
+          }
+        >
+          <span
+            className={`sidebar-leaf-dot ${isActive ? 'bg-brand-orange' : 'bg-slate-300'}`}
+            aria-hidden="true"
+          />
+          <span className="truncate">{node.name}</span>
+        </NavLink>
+      ) : (
+        /* Subtopic-typed node that still has children — treat as topic */
+        <button
+          type="button"
+          onClick={() => onToggle(node.slug)}
+          className={`sidebar-topic-btn ${hasDescendant ? 'sidebar-topic-btn--active' : ''}`}
+        >
+          <ChevronRight className={`sidebar-topic-chevron ${isOpen ? 'rotate-90' : ''}`} />
+          <span className="sidebar-topic-name">{node.name}</span>
+        </button>
       )}
     </li>
   )
 })
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const Sidebar = memo(function Sidebar() {
   const { slug } = useParams()
@@ -137,11 +199,14 @@ const Sidebar = memo(function Sidebar() {
   const [sidebarTechId, setSidebarTechId] = useState<number | null>(null)
   const [openItems, setOpenItems] = useState<Set<string>>(new Set())
   const [filterQuery, setFilterQuery] = useState('')
+  const filterRef = useRef<HTMLInputElement>(null)
 
   const publishedTechs = useMemo(
     () => technologies.filter((tech) => tech.is_published),
     [technologies],
   )
+
+  // ── Data loading (logic preserved from original) ───────────────────────────
 
   useEffect(() => {
     loadTechnologies()
@@ -151,199 +216,171 @@ const Sidebar = memo(function Sidebar() {
     let cancelled = false
 
     async function syncSidebarTech() {
-      if (publishedTechs.length === 0) {
-        return
-      }
-
+      if (publishedTechs.length === 0) return
       if (!activeSlug) {
-        if (sidebarTechId === null) {
-          setSidebarTechId(publishedTechs[0].id)
-        }
+        if (sidebarTechId === null) setSidebarTechId(publishedTechs[0].id)
         return
       }
-
       const knownTechId = findTechIdBySlug(activeSlug)
       if (knownTechId) {
-        if (!cancelled) {
-          setSidebarTechId((current) => (current === knownTechId ? current : knownTechId))
-        }
+        if (!cancelled) setSidebarTechId((c) => (c === knownTechId ? c : knownTechId))
         return
       }
-
       for (const tech of publishedTechs) {
-        const cachedTree = curriculumCache.getPublicTree(tech.id)
-        if (cachedTree && treeContainsSlug(cachedTree, activeSlug)) {
-          if (!cancelled) {
-            setSidebarTechId((current) => (current === tech.id ? current : tech.id))
-          }
+        const cached = curriculumCache.getPublicTree(tech.id)
+        if (cached && treeContainsSlug(cached, activeSlug)) {
+          if (!cancelled) setSidebarTechId((c) => (c === tech.id ? c : tech.id))
           return
         }
       }
-
       for (const tech of publishedTechs) {
         const nodes = await fetchCurriculum(tech.id)
         curriculumCache.setPublicTree(tech.id, nodes)
-
-        if (cancelled) {
-          return
-        }
-
+        if (cancelled) return
         if (treeContainsSlug(nodes, activeSlug)) {
-          setSidebarTechId((current) => (current === tech.id ? current : tech.id))
+          setSidebarTechId((c) => (c === tech.id ? c : tech.id))
           return
         }
       }
-
-      if (!cancelled && sidebarTechId === null) {
-        setSidebarTechId(publishedTechs[0].id)
-      }
+      if (!cancelled && sidebarTechId === null) setSidebarTechId(publishedTechs[0].id)
     }
 
     void syncSidebarTech()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [activeSlug, findTechIdBySlug, publishedTechs, sidebarTechId])
 
   useEffect(() => {
-    if (sidebarTechId) {
-      loadPublicTree(sidebarTechId)
-    }
+    if (sidebarTechId) loadPublicTree(sidebarTechId)
   }, [sidebarTechId, loadPublicTree])
 
   useEffect(() => {
-    if (publicTree.length === 0) {
-      return
-    }
-
-    let firstLeafSlug: string | null = null
-
-    const findFirstLeaf = (list: CurriculumNode[]) => {
-      for (const node of list) {
-        if (firstLeafSlug) {
-          return
-        }
-
-        if (node.node_type === 'subtopic' && node.children.length === 0) {
-          firstLeafSlug = node.slug
-          return
-        }
-
-        if (node.children.length > 0) {
-          findFirstLeaf(node.children)
-        }
+    if (publicTree.length === 0) return
+    let first: string | null = null
+    const findFirst = (list: CurriculumNode[]) => {
+      for (const n of list) {
+        if (first) return
+        if (n.node_type === 'subtopic' && n.children.length === 0) { first = n.slug; return }
+        if (n.children.length > 0) findFirst(n.children)
       }
     }
-
-    findFirstLeaf(publicTree)
-
-    if (firstLeafSlug) {
-      preloadNote(firstLeafSlug, DEFAULT_VERSION)
-    }
+    findFirst(publicTree)
+    if (first) preloadNote(first, DEFAULT_VERSION)
   }, [publicTree])
 
   useEffect(() => {
-    if (!activeSlug || publicTree.length === 0) {
-      return
-    }
-
+    if (!activeSlug || publicTree.length === 0) return
     const ancestors = findAncestorSlugs(publicTree, activeSlug)
-    if (!ancestors.length) {
-      return
-    }
-
+    if (!ancestors.length) return
     setOpenItems((current) => {
       const next = new Set(current)
       let changed = false
-
-      ancestors.forEach((ancestor) => {
-        if (!next.has(ancestor)) {
-          next.add(ancestor)
-          changed = true
-        }
-      })
-
+      ancestors.forEach((a) => { if (!next.has(a)) { next.add(a); changed = true } })
       return changed ? next : current
     })
   }, [activeSlug, publicTree])
 
-  const isItemOpen = useCallback((itemSlug: string) => openItems.has(itemSlug), [openItems])
+  const isItemOpen = useCallback((s: string) => openItems.has(s), [openItems])
 
-  const handleToggle = useCallback((itemSlug: string) => {
+  const handleToggle = useCallback((s: string) => {
     setOpenItems((current) => {
       const next = new Set(current)
-
-      if (next.has(itemSlug)) {
-        next.delete(itemSlug)
-      } else {
-        next.add(itemSlug)
-      }
-
+      if (next.has(s)) next.delete(s)
+      else next.add(s)
       return next
     })
   }, [])
 
-  /** Recursively filter the tree so only nodes whose name matches (or have matching descendants) remain. */
   function filterTree(nodes: CurriculumNode[], query: string): CurriculumNode[] {
     if (!query.trim()) return nodes
     const lower = query.toLowerCase()
-
     return nodes.reduce<CurriculumNode[]>((acc, node) => {
       const nameMatches = node.name.toLowerCase().includes(lower)
       const filteredChildren = filterTree(node.children, query)
-
       if (nameMatches || filteredChildren.length > 0) {
         acc.push({ ...node, children: nameMatches ? node.children : filteredChildren })
       }
-
       return acc
     }, [])
   }
 
   const displayTree = useMemo(() => filterTree(publicTree, filterQuery), [publicTree, filterQuery])
 
+  // ── Progress ───────────────────────────────────────────────────────────────
+  const leaves = useMemo(() => collectLeaves(publicTree), [publicTree])
+  const currentIndex = activeSlug ? leaves.indexOf(activeSlug) : -1
+  const progressLabel =
+    currentIndex >= 0
+      ? `${currentIndex + 1} / ${leaves.length}`
+      : leaves.length > 0
+        ? `${leaves.length} topics`
+        : null
+
+  // ── Current tech name (for mobile summary) ─────────────────────────────────
+  const currentTechName = useMemo(
+    () => publishedTechs.find((t) => t.id === sidebarTechId)?.name ?? '',
+    [publishedTechs, sidebarTechId],
+  )
+
+  // ── Shared nav content ─────────────────────────────────────────────────────
   const nav = (
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-      <div className="mb-3 flex flex-wrap gap-1.5">
+    <div className="flex flex-1 min-h-0 flex-col gap-0">
+
+      {/* Technology tabs */}
+      {publishedTechs.length > 0 && (
+        <div className="sidebar-tech-row">
           {publishedTechs.map((tech) => (
             <button
               key={tech.id}
               type="button"
+              title={tech.name}
               onClick={() => setSidebarTechId(tech.id)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              className={`sidebar-tech-tab ${
                 tech.id === sidebarTechId
-                  ? 'bg-brand-orange text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'sidebar-tech-tab--active'
+                  : 'sidebar-tech-tab--idle'
               }`}
             >
               {tech.name}
             </button>
           ))}
         </div>
+      )}
 
-      {/* Search / filter input */}
-      <div className="mb-3 relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      {/* Filter input */}
+      <div className="sidebar-search">
+        <Search className="sidebar-search-icon" aria-hidden="true" />
         <input
+          ref={filterRef}
           type="text"
           value={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
-          placeholder="Filter topics…"
-          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:outline-none transition"
+          placeholder={currentTechName ? `Search in ${currentTechName}…` : 'Filter topics…'}
+          className="sidebar-search-input"
+          aria-label="Filter curriculum topics"
         />
+        {filterQuery && (
+          <button
+            type="button"
+            onClick={() => { setFilterQuery(''); filterRef.current?.focus() }}
+            className="sidebar-search-clear"
+            aria-label="Clear filter"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {/* Tree */}
+      <div className="flex-1 overflow-y-auto sidebar-scroll min-h-0">
         {publicTreeLoading ? (
           <div className="flex min-h-[120px] items-center justify-center">
             <InlineLoader label="Loading curriculum navigation" />
           </div>
         ) : techError ? (
-          <p className="text-xs text-red-500">{techError}</p>
+          <p className="px-2 text-xs text-red-500">{techError}</p>
         ) : publicTree.length === 0 ? (
-          <div className="py-6 text-center">
-            <p className="text-sm text-slate-500">No topics published yet.</p>
+          <div className="py-8 text-center">
+            <p className="text-xs text-slate-400">No topics published yet.</p>
             <Link
               to="/curriculum"
               className="mt-2 block text-xs font-semibold text-brand-orange hover:underline"
@@ -352,12 +389,11 @@ const Sidebar = memo(function Sidebar() {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-0.5">
+          <ul className="space-y-0 pb-2">
             {displayTree.map((node) => (
               <TreeItem
                 key={node.id}
                 node={node}
-                depth={0}
                 activeSlug={activeSlug}
                 isOpen={node.slug ? isItemOpen(node.slug) : false}
                 isItemOpen={isItemOpen}
@@ -367,24 +403,49 @@ const Sidebar = memo(function Sidebar() {
           </ul>
         )}
       </div>
+
+      {/* Progress footer */}
+      {progressLabel && !publicTreeLoading && (
+        <div className="sidebar-progress">
+          <span className="sidebar-progress-bar-wrap">
+            <span
+              className="sidebar-progress-bar-fill"
+              style={{
+                width: currentIndex >= 0
+                  ? `${Math.round(((currentIndex + 1) / leaves.length) * 100)}%`
+                  : '0%',
+              }}
+            />
+          </span>
+          <span className="sidebar-progress-label">{progressLabel}</span>
+        </div>
+      )}
     </div>
   )
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
+      {/* Mobile — collapsible panel */}
       <details className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
-          <span className="text-sm font-semibold text-slate-800">Browse Topics</span>
-          <ChevronDown className="h-4 w-4 text-slate-400" />
+        <summary className="sidebar-mobile-summary">
+          <div className="min-w-0">
+            <span className="block text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              {currentTechName || 'Curriculum'}
+            </span>
+            <span className="block text-sm font-semibold text-slate-800 truncate">
+              Browse Topics
+            </span>
+          </div>
+          <ChevronRight className="sidebar-mobile-chevron shrink-0" />
         </summary>
         <div className="border-t border-slate-100 px-4 py-3">{nav}</div>
       </details>
 
-      <aside className="hidden w-[260px] shrink-0 lg:block">
-        <div className="sticky top-36 flex flex-col max-h-[calc(100vh-10rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <p className="mb-3 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            Curriculum
-          </p>
+      {/* Desktop — sticky panel */}
+      <aside className="hidden w-[272px] shrink-0 lg:block">
+        <div className="sidebar-panel">
+          <p className="sidebar-panel-header">Curriculum</p>
           {nav}
         </div>
       </aside>
