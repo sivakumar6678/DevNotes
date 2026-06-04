@@ -55,7 +55,7 @@ def validate_rich_content(value, *, path: str) -> dict:
     if not isinstance(blocks, list):
         raise ValidationError(f"`{path}.blocks` must be a list.")
         
-    valid_types = {"paragraph", "diagram", "bullets", "numbered_list", "callout", "code"}
+    valid_types = {"paragraph", "diagram", "bullets", "numbered_list", "callout", "code", "table"}
     for idx, block in enumerate(blocks):
         if not isinstance(block, dict):
             raise ValidationError(f"`{path}.blocks[{idx}]` must be an object.")
@@ -87,17 +87,19 @@ def validate_collection_field(value, *, path: str, item_validator) -> list:
         validated.append(item_validator(item, path=f"{path}[{idx}]"))
     return validated
 
-def validate_list_of_strings(value, *, path: str) -> list[str]:
-    """Validates that a field is a list of strings."""
-    if not isinstance(value, list):
-        raise ValidationError(f"`{path}` must be a list.")
-    validated = []
-    for idx, item in enumerate(value):
-        if not isinstance(item, str):
-            raise ValidationError(f"`{path}[{idx}]` must be a string.")
-        if item.strip():
-            validated.append(item.strip())
-    return validated
+def validate_list_of_strings_or_rich(value, *, path: str):
+    """Validates that a field is EITHER a list of strings OR a rich structured object."""
+    if isinstance(value, list):
+        validated = []
+        for idx, item in enumerate(value):
+            if not isinstance(item, str):
+                raise ValidationError(f"`{path}[{idx}]` must be a string.")
+            if item.strip():
+                validated.append(item.strip())
+        return validated
+    if isinstance(value, dict) and value.get("type") == "rich":
+        return validate_rich_content(value, path=path)
+    raise ValidationError(f"`{path}` must be a list of strings or a rich content object.")
 
 def _extract_text_fallback(val) -> str:
     """Extract text from a rich object or other to fallback as string if needed."""
@@ -196,7 +198,7 @@ def normalize_content_payload(content: object) -> dict:
         if isinstance(val, str):
             payload[field] = [line.strip("- ").strip() for line in val.split("\n") if line.strip()]
         elif isinstance(val, dict) and val.get("type") == "rich":
-            payload[field] = [line.strip("- ").strip() for line in _extract_text_fallback(val).split("\n") if line.strip()]
+            pass # PRESERVE rich object; do not extract text
         elif not isinstance(val, list):
             payload[field] = []
 
@@ -360,9 +362,9 @@ def validate_note_content(content: object) -> dict:
     for field in HYBRID_FIELDS:
         sanitized[field] = validate_hybrid_field(content.get(field), path=f"content.{field}")
 
-    # Validate List of Strings
+    # Validate List of Strings OR Rich Content
     for field in LIST_OF_STRINGS_FIELDS:
-        sanitized[field] = validate_list_of_strings(content.get(field), path=f"content.{field}")
+        sanitized[field] = validate_list_of_strings_or_rich(content.get(field), path=f"content.{field}")
 
     # Validate Structured Collections
     sanitized["core_concepts"] = validate_collection_field(

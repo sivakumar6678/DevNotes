@@ -39,18 +39,6 @@ function findAncestorSlugs(
   return []
 }
 
-function collectLeaves(nodes: CurriculumNode[]): string[] {
-  const result: string[] = []
-  function walk(items: CurriculumNode[]) {
-    for (const n of items) {
-      if (n.node_type === 'subtopic' && n.children.length === 0) result.push(n.slug)
-      if (n.children.length > 0) walk(n.children)
-    }
-  }
-  walk(nodes)
-  return result
-}
-
 // ─── TreeItem ─────────────────────────────────────────────────────────────────
 
 interface TreeItemProps {
@@ -73,24 +61,15 @@ const TreeItem = memo(function TreeItem({
   const hasDescendant = !isActive && hasActiveDescendant(node, activeSlug)
   const hasChildren = node.children.length > 0
 
-  // ── Section: chapter-level heading with separator line ────────────────────
+  // ── Section: chapter-level heading ─────────────────────────────────────────
   if (node.node_type === 'section') {
     return (
-      <li className="mt-5 first:mt-1">
-        <button
-          type="button"
-          onClick={() => onToggle(node.slug)}
-          aria-expanded={isOpen}
-          className="sidebar-section-btn"
-        >
+      <li className="mt-6 first:mt-2">
+        <div className="sidebar-section-header">
           <span className="sidebar-section-label">{node.name}</span>
-          <span className="sidebar-section-rule" aria-hidden="true" />
-          <ChevronRight
-            className={`sidebar-section-chevron ${isOpen ? 'rotate-90' : ''}`}
-          />
-        </button>
-        {isOpen && hasChildren && (
-          <ul className="mt-1 space-y-0.5">
+        </div>
+        {hasChildren && (
+          <ul className="mt-2 space-y-0.5">
             {node.children.map((child) => (
               <TreeItem
                 key={child.id}
@@ -122,12 +101,9 @@ const TreeItem = memo(function TreeItem({
               hasDescendant ? 'text-brand-orange/70' : ''
             }`}
           />
-          <span className={`sidebar-topic-name ${hasDescendant ? 'text-slate-900' : ''}`}>
+          <span className={`sidebar-topic-name ${hasDescendant ? 'text-slate-900 font-semibold' : ''}`}>
             {node.name}
           </span>
-          {hasDescendant && (
-            <span className="sidebar-topic-pip" aria-hidden="true" />
-          )}
         </button>
         {isOpen && hasChildren && (
           <ul className="sidebar-topic-children">
@@ -159,10 +135,6 @@ const TreeItem = memo(function TreeItem({
             `sidebar-leaf ${navActive ? 'sidebar-leaf--active' : 'sidebar-leaf--idle'}`
           }
         >
-          <span
-            className={`sidebar-leaf-dot ${isActive ? 'bg-brand-orange' : 'bg-slate-300'}`}
-            aria-hidden="true"
-          />
           <span className="truncate">{node.name}</span>
         </NavLink>
       ) : (
@@ -305,21 +277,66 @@ const Sidebar = memo(function Sidebar() {
 
   const displayTree = useMemo(() => filterTree(publicTree, filterQuery), [publicTree, filterQuery])
 
-  // ── Progress ───────────────────────────────────────────────────────────────
-  const leaves = useMemo(() => collectLeaves(publicTree), [publicTree])
-  const currentIndex = activeSlug ? leaves.indexOf(activeSlug) : -1
-  const progressLabel =
-    currentIndex >= 0
-      ? `${currentIndex + 1} / ${leaves.length}`
-      : leaves.length > 0
-        ? `${leaves.length} topics`
-        : null
-
   // ── Current tech name (for mobile summary) ─────────────────────────────────
   const currentTechName = useMemo(
     () => publishedTechs.find((t) => t.id === sidebarTechId)?.name ?? '',
     [publishedTechs, sidebarTechId],
   )
+
+  // ── Context Card ───────────────────────────────────────────────────────────
+  const contextCard = useMemo(() => {
+    if (!activeSlug || publicTree.length === 0) return null
+    let sectionNode: CurriculumNode | null = null
+    let topicNode: CurriculumNode | null = null
+    let subtopicNode: CurriculumNode | null = null
+
+    for (const s of publicTree) {
+      if (s.slug === activeSlug || treeContainsSlug([s], activeSlug)) {
+        sectionNode = s
+        for (const t of s.children) {
+          if (t.slug === activeSlug || treeContainsSlug([t], activeSlug)) {
+            topicNode = t
+            for (const st of t.children) {
+              if (st.slug === activeSlug) {
+                subtopicNode = st
+                break
+              }
+            }
+            break
+          }
+        }
+        break
+      }
+    }
+    if (!sectionNode && !topicNode && !subtopicNode) return null
+
+    return (
+      <div className="sidebar-context-card">
+        <p className="sidebar-context-card-title">You are here</p>
+        <div className="sidebar-context-card-path">
+          <span className="sidebar-context-tech">{currentTechName}</span>
+          {sectionNode && (
+            <>
+              <span className="sidebar-context-sep">/</span>
+              <span className="sidebar-context-node">{sectionNode.name}</span>
+            </>
+          )}
+          {topicNode && (
+            <>
+              <span className="sidebar-context-sep">/</span>
+              <span className="sidebar-context-node">{topicNode.name}</span>
+            </>
+          )}
+          {subtopicNode && (
+            <>
+              <span className="sidebar-context-sep">/</span>
+              <span className="sidebar-context-active">{subtopicNode.name}</span>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }, [activeSlug, publicTree, currentTechName])
 
   // ── Shared nav content ─────────────────────────────────────────────────────
   const nav = (
@@ -370,6 +387,8 @@ const Sidebar = memo(function Sidebar() {
         )}
       </div>
 
+      {contextCard}
+
       {/* Tree */}
       <div className="flex-1 overflow-y-auto sidebar-scroll min-h-0">
         {publicTreeLoading ? (
@@ -403,23 +422,6 @@ const Sidebar = memo(function Sidebar() {
           </ul>
         )}
       </div>
-
-      {/* Progress footer */}
-      {progressLabel && !publicTreeLoading && (
-        <div className="sidebar-progress">
-          <span className="sidebar-progress-bar-wrap">
-            <span
-              className="sidebar-progress-bar-fill"
-              style={{
-                width: currentIndex >= 0
-                  ? `${Math.round(((currentIndex + 1) / leaves.length) * 100)}%`
-                  : '0%',
-              }}
-            />
-          </span>
-          <span className="sidebar-progress-label">{progressLabel}</span>
-        </div>
-      )}
     </div>
   )
 
