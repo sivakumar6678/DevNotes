@@ -1,4 +1,139 @@
 RULES.md
 .codex
 features.md
-features.md
+features.mdPerform a sidebar hierarchy refinement pass.
+
+The current implementation improved active states but introduced a new usability issue.
+
+Users can clearly identify the active page, but non-active sections no longer stand out enough.
+
+The sidebar hierarchy must become more obvious.
+
+---
+
+# ISSUE 1 — SECTION VISIBILITY
+
+Current sections:
+
+* Language Fundamentals
+* Execution Model
+* Functions
+* Objects
+* Arrays
+* Control Flow
+
+look too similar to normal navigation items.
+
+Requirements:
+
+* Increase visual distinction for sections.
+* Improve typography.
+* Improve spacing.
+* Improve readability.
+
+Users should immediately recognize these as section containers.
+
+---
+
+# ISSUE 2 — SECTION SEPARATION
+
+Current sections visually merge together.
+
+Requirements:
+
+Add subtle separators between sections.
+
+Examples:
+
+* divider lines
+* spacing groups
+* section containers
+
+Avoid heavy borders.
+
+Goal:
+
+Users should clearly see where one section ends and another begins.
+
+---
+
+# ISSUE 3 — ACTIVE SUBTOPIC BALANCE
+
+Current active subtopic styling is slightly overpowering.
+
+Review:
+
+* orange intensity
+* contrast
+* readability
+
+Options:
+
+1. Use white text with current orange.
+   OR
+
+2. Slightly reduce orange intensity and maintain readability.
+
+Choose the most premium documentation-style approach.
+
+Goal:
+
+Strong visibility without overpowering the rest of the sidebar.
+
+---
+
+# ISSUE 4 — VISUAL HIERARCHY
+
+Hierarchy must be obvious:
+
+Section Group
+→ strongest structural element
+
+Section
+→ secondary structural element
+
+Subtopic
+→ navigation element
+
+Active Subtopic
+→ strongest active state
+
+Requirements:
+
+Each level must have a distinct appearance.
+
+Avoid making all levels visually similar.
+
+---
+
+# ISSUE 5 — DOCUMENTATION STYLE
+
+Compare sidebar against:
+
+* MDN
+* Stripe Docs
+* Tailwind Docs
+* Next.js Docs
+
+Ensure:
+
+* clean hierarchy
+* strong scanability
+* easy curriculum discovery
+
+Goal:
+
+Users should understand the curriculum structure within 2 seconds.
+
+---
+
+Before implementation:
+
+Provide a visual mockup showing:
+
+1. Section Group
+2. Section
+3. Active Subtopic
+4. Divider treatment
+
+Then implement.

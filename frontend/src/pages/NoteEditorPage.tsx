@@ -244,32 +244,26 @@ export default function NoteEditorPage() {
 
       const savedStr = JSON.stringify(parsed, null, 2)
 
-      // Force refetch to keep local components in sync
-      let fresh = null
-      try {
-        fresh = await fetchNoteByTopic(numericTopicId, true)
-        if (fresh?.versions) {
-          for (const key of Object.keys(fresh.versions)) {
-            fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
-          }
-        }
-        setNoteData(fresh)
-      } catch (err) {
-        console.error('Failed to refetch fresh data:', err)
-      }
-
-      const freshStr = fresh?.versions?.[versionType]
-        ? JSON.stringify(fresh.versions[versionType], null, 2)
-        : savedStr
-
+      // Optimistically update local state to avoid a redundant network refetch
       setContentInputs((prev) => ({
         ...prev,
-        [versionType]: freshStr
+        [versionType]: savedStr
       }))
       setOriginalContent((prev) => ({
         ...prev,
-        [versionType]: freshStr
+        [versionType]: savedStr
       }))
+
+      setNoteData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          versions: {
+            ...prev.versions,
+            [versionType]: parsed
+          }
+        }
+      })
 
       // Auto-clear success message after 4 s
       setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)

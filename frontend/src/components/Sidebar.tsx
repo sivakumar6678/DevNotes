@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { fetchCurriculum } from '../api/curriculum'
 import { DEFAULT_VERSION } from '../constants'
@@ -44,6 +44,7 @@ function findAncestorSlugs(
 interface TreeItemProps {
   node: CurriculumNode
   activeSlug: string
+  activeAncestorSlugs: Set<string>
   isOpen: boolean
   isItemOpen: (slug: string) => boolean
   onToggle: (slug: string) => void
@@ -52,29 +53,32 @@ interface TreeItemProps {
 const TreeItem = memo(function TreeItem({
   node,
   activeSlug,
+  activeAncestorSlugs,
   isOpen,
   isItemOpen,
   onToggle,
 }: TreeItemProps) {
   const isLeaf = node.node_type === 'subtopic' && node.children.length === 0
   const isActive = node.slug === activeSlug
+  const isAncestor = node.slug ? activeAncestorSlugs.has(node.slug) : false
   const hasDescendant = !isActive && hasActiveDescendant(node, activeSlug)
   const hasChildren = node.children.length > 0
 
   // ── Section: chapter-level heading ─────────────────────────────────────────
   if (node.node_type === 'section') {
     return (
-      <li className="mt-6 first:mt-2">
-        <div className="sidebar-section-header">
+      <li className="sidebar-section-li">
+        <div className={`sidebar-section-header ${isAncestor || hasDescendant ? 'sidebar-section-header--active' : ''}`}>
           <span className="sidebar-section-label">{node.name}</span>
         </div>
         {hasChildren && (
-          <ul className="mt-2 space-y-0.5">
+          <ul className="sidebar-section-topics">
             {node.children.map((child) => (
               <TreeItem
                 key={child.id}
                 node={child}
                 activeSlug={activeSlug}
+                activeAncestorSlugs={activeAncestorSlugs}
                 isOpen={child.slug ? isItemOpen(child.slug) : false}
                 isItemOpen={isItemOpen}
                 onToggle={onToggle}
@@ -88,21 +92,28 @@ const TreeItem = memo(function TreeItem({
 
   // ── Topic: collapsible group with ancestor-active indicator ───────────────
   if (node.node_type === 'topic') {
+    const isTopicAncestor = isAncestor || hasDescendant
     return (
       <li>
         <button
           type="button"
           onClick={() => onToggle(node.slug)}
           aria-expanded={isOpen}
-          className={`sidebar-topic-btn ${hasDescendant ? 'sidebar-topic-btn--active' : ''}`}
+          className={`sidebar-topic-btn ${
+            isTopicAncestor ? 'sidebar-topic-btn--ancestor' : ''
+          }`}
         >
-          <ChevronRight
-            className={`sidebar-topic-chevron ${isOpen ? 'rotate-90' : ''} ${
-              hasDescendant ? 'text-brand-orange/70' : ''
-            }`}
-          />
-          <span className={`sidebar-topic-name ${hasDescendant ? 'text-slate-900 font-semibold' : ''}`}>
+          <span className={`sidebar-topic-name ${isTopicAncestor ? 'sidebar-topic-name--ancestor' : ''}`}>
             {node.name}
+          </span>
+          <span className="sidebar-topic-chevron-wrap">
+            <ChevronDown
+              className={`sidebar-topic-chevron ${
+                isOpen ? '' : '-rotate-90'
+              } ${
+                isTopicAncestor ? 'sidebar-topic-chevron--ancestor' : ''
+              }`}
+            />
           </span>
         </button>
         {isOpen && hasChildren && (
@@ -112,6 +123,7 @@ const TreeItem = memo(function TreeItem({
                 key={child.id}
                 node={child}
                 activeSlug={activeSlug}
+                activeAncestorSlugs={activeAncestorSlugs}
                 isOpen={child.slug ? isItemOpen(child.slug) : false}
                 isItemOpen={isItemOpen}
                 onToggle={onToggle}
@@ -142,10 +154,20 @@ const TreeItem = memo(function TreeItem({
         <button
           type="button"
           onClick={() => onToggle(node.slug)}
-          className={`sidebar-topic-btn ${hasDescendant ? 'sidebar-topic-btn--active' : ''}`}
+          className={`sidebar-topic-btn ${
+            hasDescendant ? 'sidebar-topic-btn--ancestor' : ''
+          }`}
         >
-          <ChevronRight className={`sidebar-topic-chevron ${isOpen ? 'rotate-90' : ''}`} />
           <span className="sidebar-topic-name">{node.name}</span>
+          <span className="sidebar-topic-chevron-wrap">
+            <ChevronDown
+              className={`sidebar-topic-chevron ${
+                isOpen ? '' : '-rotate-90'
+              } ${
+                hasDescendant ? 'sidebar-topic-chevron--ancestor' : ''
+              }`}
+            />
+          </span>
         </button>
       )}
     </li>
@@ -283,85 +305,15 @@ const Sidebar = memo(function Sidebar() {
     [publishedTechs, sidebarTechId],
   )
 
-  // ── Context Card ───────────────────────────────────────────────────────────
-  const contextCard = useMemo(() => {
-    if (!activeSlug || publicTree.length === 0) return null
-    let sectionNode: CurriculumNode | null = null
-    let topicNode: CurriculumNode | null = null
-    let subtopicNode: CurriculumNode | null = null
-
-    for (const s of publicTree) {
-      if (s.slug === activeSlug || treeContainsSlug([s], activeSlug)) {
-        sectionNode = s
-        for (const t of s.children) {
-          if (t.slug === activeSlug || treeContainsSlug([t], activeSlug)) {
-            topicNode = t
-            for (const st of t.children) {
-              if (st.slug === activeSlug) {
-                subtopicNode = st
-                break
-              }
-            }
-            break
-          }
-        }
-        break
-      }
-    }
-    if (!sectionNode && !topicNode && !subtopicNode) return null
-
-    return (
-      <div className="sidebar-context-card">
-        <p className="sidebar-context-card-title">You are here</p>
-        <div className="sidebar-context-card-path">
-          <span className="sidebar-context-tech">{currentTechName}</span>
-          {sectionNode && (
-            <>
-              <span className="sidebar-context-sep">/</span>
-              <span className="sidebar-context-node">{sectionNode.name}</span>
-            </>
-          )}
-          {topicNode && (
-            <>
-              <span className="sidebar-context-sep">/</span>
-              <span className="sidebar-context-node">{topicNode.name}</span>
-            </>
-          )}
-          {subtopicNode && (
-            <>
-              <span className="sidebar-context-sep">/</span>
-              <span className="sidebar-context-active">{subtopicNode.name}</span>
-            </>
-          )}
-        </div>
-      </div>
-    )
-  }, [activeSlug, publicTree, currentTechName])
+  // ── Active ancestor slugs — used for parent-context highlighting ───────────
+  const activeAncestorSlugs = useMemo(() => {
+    if (!activeSlug || publicTree.length === 0) return new Set<string>()
+    return new Set(findAncestorSlugs(publicTree, activeSlug))
+  }, [activeSlug, publicTree])
 
   // ── Shared nav content ─────────────────────────────────────────────────────
   const nav = (
     <div className="flex flex-1 min-h-0 flex-col gap-0">
-
-      {/* Technology tabs */}
-      {publishedTechs.length > 0 && (
-        <div className="sidebar-tech-row">
-          {publishedTechs.map((tech) => (
-            <button
-              key={tech.id}
-              type="button"
-              title={tech.name}
-              onClick={() => setSidebarTechId(tech.id)}
-              className={`sidebar-tech-tab ${
-                tech.id === sidebarTechId
-                  ? 'sidebar-tech-tab--active'
-                  : 'sidebar-tech-tab--idle'
-              }`}
-            >
-              {tech.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Filter input */}
       <div className="sidebar-search">
@@ -387,7 +339,7 @@ const Sidebar = memo(function Sidebar() {
         )}
       </div>
 
-      {contextCard}
+
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto sidebar-scroll min-h-0">
@@ -408,12 +360,13 @@ const Sidebar = memo(function Sidebar() {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-0 pb-2">
+          <ul className="space-y-0 pb-4">
             {displayTree.map((node) => (
               <TreeItem
                 key={node.id}
                 node={node}
                 activeSlug={activeSlug}
+                activeAncestorSlugs={activeAncestorSlugs}
                 isOpen={node.slug ? isItemOpen(node.slug) : false}
                 isItemOpen={isItemOpen}
                 onToggle={handleToggle}

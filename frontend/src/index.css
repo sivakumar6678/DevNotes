@@ -174,19 +174,20 @@ button {
   border-radius: 1.25rem;
   border: 1px solid #e2e8f0;
   background: #ffffff;
-  padding: 1rem;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
-  gap: 0.75rem;
+  padding: 1rem 0.875rem;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.07), 0 0 0 0.5px rgba(15,23,42,0.04);
+  gap: 0.625rem;
 }
 
 .sidebar-panel-header {
   flex-shrink: 0;
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #94a3b8;
-  margin: 0;
+  color: #64748b;
+  margin: 0 0 0.125rem;
+  padding: 0 0.125rem;
 }
 
 /* ── Scrollable tree area ─────────────────────────────────────────────────── */
@@ -205,85 +206,51 @@ button {
   border-radius: 9999px;
 }
 
-/* ── Technology tabs ──────────────────────────────────────────────────────── */
-.sidebar-tech-row {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.375rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  scrollbar-width: none;
-}
-.sidebar-tech-row::-webkit-scrollbar { display: none; }
 
-.sidebar-tech-tab {
-  flex-shrink: 0;
-  border-radius: 0.5rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
-  border: none;
-  cursor: pointer;
-  line-height: 1.4;
-}
-.sidebar-tech-tab--active {
-  background: #f97316;
-  color: #ffffff;
-  box-shadow: 0 1px 4px rgba(249, 115, 22, 0.3);
-}
-.sidebar-tech-tab--idle {
-  background: #f1f5f9;
-  color: #64748b;
-}
-.sidebar-tech-tab--idle:hover {
-  background: #e2e8f0;
-  color: #334155;
-}
 
 /* ── Search / filter ──────────────────────────────────────────────────────── */
 .sidebar-search {
   position: relative;
   flex-shrink: 0;
+  margin-bottom: 0.125rem;
 }
 .sidebar-search-icon {
   pointer-events: none;
   position: absolute;
-  left: 0.625rem;
+  left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 0.8rem;
-  height: 0.8rem;
-  color: #94a3b8;
+  width: 0.725rem;
+  height: 0.725rem;
+  color: #b0bec9;
 }
 .sidebar-search-input {
   width: 100%;
   border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #edf0f4;
   background: #f8fafc;
-  padding: 0.375rem 2rem 0.375rem 1.875rem;
-  font-size: 0.72rem;
+  padding: 0.3rem 1.875rem 0.3rem 1.75rem;
+  font-size: 0.7125rem;
   color: #334155;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   outline: none;
 }
-.sidebar-search-input::placeholder { color: #94a3b8; }
+.sidebar-search-input::placeholder { color: #b0bec9; font-size: 0.6875rem; }
 .sidebar-search-input:focus {
   border-color: #fdba74;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08);
+  box-shadow: 0 0 0 2.5px rgba(249, 115, 22, 0.09);
 }
 .sidebar-search-clear {
   position: absolute;
-  right: 0.5rem;
+  right: 0.4rem;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1rem;
+  height: 1rem;
   border-radius: 9999px;
   background: #e2e8f0;
   color: #64748b;
@@ -293,137 +260,180 @@ button {
 }
 .sidebar-search-clear:hover { background: #cbd5e1; }
 
-/* ── Context Card ─────────────────────────────────────────────────────────── */
-.sidebar-context-card {
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-}
-.sidebar-context-card-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #94a3b8;
-  margin-bottom: 0.25rem;
-}
-.sidebar-context-card-path {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: #64748b;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-}
-.sidebar-context-tech {
-  font-weight: 700;
-  color: #334155;
-}
-.sidebar-context-node {
-  font-weight: 500;
-  color: #64748b;
-}
-.sidebar-context-active {
-  font-weight: 600;
-  color: #ea580c;
-}
-.sidebar-context-sep {
-  color: #cbd5e1;
-  font-size: 0.7rem;
-}
 
-/* ── Section node (chapter header) ───────────────────────────────────────── */
+/* ── Section Group (node_type="section") ─────────────────────────────────── */
+/* Strongest structural landmark — orange ALL-CAPS chapter label.             */
+/* Users should recognize this as a major curriculum group instantly.         */
 .sidebar-section-header {
-  padding: 0.25rem 0.5rem;
-  margin-bottom: 0.125rem;
+  padding: 0 0.125rem;
+  margin-bottom: 0.5rem;
+  margin-top: 0.25rem;
+}
+/* Active: label deepens slightly — structural, not interactive */
+.sidebar-section-header--active .sidebar-section-label {
+  color: #c2410c;
 }
 .sidebar-section-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  display: block;
+  /* Slightly larger than before — needs to dominate the hierarchy */
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #1e293b;
+  color: #ea580c;
+  line-height: 1.5;
+  padding-bottom: 0.375rem;
+  /* Warm orange-tinted underline — cleaner than gray */
+  border-bottom: 1px solid #fde8d8;
+  transition: color 0.15s;
 }
 
-/* ── Topic node (collapsible group) ───────────────────────────────────────── */
+/* Section li wrapper — spacing between section groups */
+.sidebar-section-li {
+  margin-top: 0.25rem;
+}
+/* Gap + no extra border — the label underline already divides groups */
+.sidebar-section-li + .sidebar-section-li {
+  margin-top: 1.375rem;
+}
+
+/* Topic card list inside a section group */
+.sidebar-section-topics {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.375rem;
+  gap: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ── Section Card (node_type="topic") ────────────────────────────────────── */
+/* Clearly a named section — card background + bold text + faint warm border. */
+/* Users recognize this as a curriculum section that collapses/expands.       */
 .sidebar-topic-btn {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
   width: 100%;
-  padding: 0.35rem 0.5rem;
+  /* Larger padding — these are section blocks, not small links */
+  padding: 0.5rem 0.625rem 0.5rem 0.75rem;
   border-radius: 0.5rem;
-  background: transparent;
-  border: none;
+  /* Warm card background — clearly a block, not plain text */
+  background: #fff8f3;
+  /* Faint warm border gives card definition without heaviness */
+  border: 1px solid #fde8d8;
+  border-left-width: 1px;
+  /* Will be overridden by ancestor state */
+  border-left-color: #fde8d8;
   cursor: pointer;
   text-align: left;
-  transition: color 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  /* Stack section cards with clear separation */
+  margin-bottom: 0.1875rem;
+}
+.sidebar-topic-btn:hover {
+  background: #fff0e6;
+  border-color: #fcd0a8;
+}
+/* Ancestor (contains active page) — stronger amber + orange left accent */
+.sidebar-topic-btn--ancestor {
+  background: #fef0e6;
+  border-color: #fcd0a8;
+  border-left: 3px solid #f97316;
+}
+.sidebar-topic-btn--ancestor:hover {
+  background: #fee8d8;
 }
 .sidebar-topic-btn:hover .sidebar-topic-name {
   color: #0f172a;
 }
-.sidebar-topic-btn--active .sidebar-topic-name {
-  color: #0f172a;
+
+/* Chevron — right-aligned trailing indicator */
+.sidebar-topic-chevron-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.25rem;
+  transition: background 0.15s;
+  margin-left: auto;
+  margin-right: -0.125rem;
+}
+.sidebar-topic-btn:hover .sidebar-topic-chevron-wrap {
+  background: rgba(15, 23, 42, 0.05);
 }
 .sidebar-topic-chevron {
   flex-shrink: 0;
-  width: 0.75rem;
-  height: 0.75rem;
-  color: #cbd5e1;
-  transition: transform 0.2s ease, color 0.15s;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: #94a3b8;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
 }
-.sidebar-topic-btn:hover .sidebar-topic-chevron { color: #94a3b8; }
+.sidebar-topic-chevron--ancestor { color: #f97316; }
+.sidebar-topic-btn:hover .sidebar-topic-chevron { color: #64748b; }
+.sidebar-topic-btn:hover .sidebar-topic-chevron--ancestor { color: #ea580c; }
 
+/* Section name — strong, dark, readable */
 .sidebar-topic-name {
   flex: 1;
+  /* Medium-bold: section names must be clearly readable */
   font-size: 0.8125rem;
-  font-weight: 500;
-  color: #475569;
+  font-weight: 600;
+  color: #1e293b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: color 0.12s;
   min-width: 0;
 }
-
-.sidebar-topic-children {
-  margin-top: 0.125rem;
-  padding-left: 0.875rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  border-left: 1px solid #e2e8f0;
-  margin-left: 0.875rem;
+/* Ancestor state: deeper orange text — immediately shows this section is active */
+.sidebar-topic-name--ancestor {
+  color: #c2410c;
+  font-weight: 700;
 }
 
-/* ── Subtopic leaf node ───────────────────────────────────────────────────── */
+/* Subtopic children — indented list under a tree-line */
+.sidebar-topic-children {
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  border-left: 1.5px solid #e5e7eb;
+  margin-left: 1.25rem;
+  margin-bottom: 0.125rem;
+}
+
+/* ── Subtopic leaf node ── navigable page links ────────────────────────────── */
 .sidebar-leaf {
   display: flex;
   align-items: center;
-  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  /* Comfortable vertical padding — easy to click/tap */
+  padding: 0.375rem 0.625rem 0.375rem 0.625rem;
+  border-radius: 0.4375rem;
   text-decoration: none;
-  transition: color 0.12s, border-color 0.12s;
+  transition: color 0.14s, background 0.15s, box-shadow 0.15s;
   min-width: 0;
-  border-left: 1px solid transparent;
-  margin-left: -1px;
 }
 .sidebar-leaf--idle {
-  color: #64748b;
+  /* 13px — same as section name but lighter weight, clearly subordinate */
+  color: #420ac2;
   font-size: 0.8125rem;
   font-weight: 400;
 }
 .sidebar-leaf--idle:hover {
-  color: #0f172a;
-  border-left-color: #cbd5e1;
+  color: #1e293b;
+  background: #f8fafc;
 }
+/* CURRENT PAGE: Option B (Soft tinted bg + strong accent text) */
+/* Premium documentation style — high visibility, zero overpowering */
 .sidebar-leaf--active {
-  color: #ea580c;
+  color: #c2410c;
   font-size: 0.8125rem;
   font-weight: 600;
-  border-left-color: #ea580c;
+  background: #ffedd5;
+  letter-spacing: 0.01em;
 }
 
 /* ── Mobile summary ───────────────────────────────────────────────────────── */
