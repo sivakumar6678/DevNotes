@@ -145,7 +145,6 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
 
     // 2. Fetch from the network
     setTreeLoading(true)
-    setTree([])
     try {
       const nodes = await fetchCurriculumAdmin(techId)
       curriculumCache.setTree(techId, nodes)
@@ -214,14 +213,15 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
   // ── activeTechId setter (also triggers tree load) ───────────────────────────
 
   const setActiveTechId = useCallback((id: number | null) => {
+    if (id !== activeTechId) {
+      setTree([])
+    }
     setActiveTechIdState(id)
     if (id) {
       // Will use cached tree if available
       loadTree(id)
-    } else {
-      setTree([])
     }
-  }, [loadTree])
+  }, [activeTechId, loadTree])
 
   return (
     <CurriculumContext.Provider

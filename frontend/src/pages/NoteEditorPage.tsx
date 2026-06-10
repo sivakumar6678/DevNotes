@@ -6,6 +6,7 @@ import NoteContent from '../components/NoteContent'
 import { fetchNoteByTopic, createVersion, updateTopic } from '../api/curriculum'
 import type { TopicNoteData } from '../types'
 import { normalizeNoteVersion } from '../utils/contentNormalizer'
+import { curriculumCache } from '../utils/curriculumCache'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -282,16 +283,26 @@ export default function NoteEditorPage() {
     setSaveStatus('idle')
     setSaveMessage('')
     try {
-      await updateTopic(numericTopicId, { is_published: !noteData.topic.is_published, sort_order: noteData.topic.sort_order })
+      const newPublishedState = !noteData.topic.is_published
+      await updateTopic(numericTopicId, { is_published: newPublishedState, sort_order: noteData.topic.sort_order })
+      
       setSaveStatus('success')
-      setSaveMessage(noteData.topic.is_published ? 'Topic unpublished successfully.' : 'Topic published successfully.')
-      const fresh = await fetchNoteByTopic(numericTopicId)
-      if (fresh?.versions) {
-        for (const key of Object.keys(fresh.versions)) {
-          fresh.versions[key] = normalizeNoteVersion(fresh.versions[key])
+      setSaveMessage(newPublishedState ? 'Topic published successfully.' : 'Topic unpublished successfully.')
+      
+      setNoteData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          topic: { ...prev.topic, is_published: newPublishedState }
         }
+      })
+      
+      curriculumCache.invalidateNote(numericTopicId)
+      if (noteData.topic.technology_id) {
+        curriculumCache.invalidateTree(noteData.topic.technology_id)
+        curriculumCache.invalidatePublicTree(noteData.topic.technology_id)
       }
-      setNoteData(fresh)
+      
       setTimeout(() => { setSaveStatus('idle'); setSaveMessage('') }, 4000)
     } catch (err) {
       setSaveStatus('error')

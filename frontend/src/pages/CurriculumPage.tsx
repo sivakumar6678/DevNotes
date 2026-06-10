@@ -472,7 +472,7 @@ export default function CurriculumPage() {
 
               {/* Tree panel */}
               <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                {treeLoading ? (
+                {treeLoading && tree.length === 0 ? (
                   <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
                 ) : (
                   <CurriculumTree
