@@ -318,7 +318,7 @@ button {
   padding: 0.5rem 0.625rem 0.5rem 0.75rem;
   border-radius: 0.5rem;
   /* Warm card background — clearly a block, not plain text */
-  background: #fff8f3;
+  background: #f1eea0bc;
   /* Faint warm border gives card definition without heaviness */
   border: 1px solid #fde8d8;
   border-left-width: 1px;
@@ -425,6 +425,7 @@ button {
 .sidebar-leaf--idle:hover {
   color: #1e293b;
   background: #f8fafc;
+  box-shadow: inset 0px 0px 1px 2px #a9cdedff;  
 }
 /* CURRENT PAGE: Option B (Soft tinted bg + strong accent text) */
 /* Premium documentation style — high visibility, zero overpowering */
@@ -1238,3 +1239,204 @@ pre.diagram {
   border-left-color: #3b82f6;
   background: #eff6ff;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Homepage & About Page — Scroll Reveal Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes hp-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hp-reveal-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes hp-reveal-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes hp-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes hp-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes hp-pulse-ring {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  100% { transform: scale(1.55); opacity: 0;   }
+}
+
+@keyframes hp-flow-line {
+  0%   { stroke-dashoffset: 120; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.hp-reveal {
+  opacity: 0;
+  animation: hp-reveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hp-reveal-left {
+  opacity: 0;
+  animation: hp-reveal-left 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hp-reveal-right {
+  opacity: 0;
+  animation: hp-reveal-right 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hp-fade {
+  opacity: 0;
+  animation: hp-fade 0.5s ease forwards;
+}
+.hp-float {
+  animation: hp-float 4s ease-in-out infinite;
+}
+
+/* Visibility gate — animations only fire when .is-visible is present */
+.hp-section {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hp-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays for child cards */
+.hp-stagger-1 { transition-delay: 0ms;   animation-delay: 0ms; }
+.hp-stagger-2 { transition-delay: 80ms;  animation-delay: 80ms; }
+.hp-stagger-3 { transition-delay: 160ms; animation-delay: 160ms; }
+.hp-stagger-4 { transition-delay: 240ms; animation-delay: 240ms; }
+.hp-stagger-5 { transition-delay: 320ms; animation-delay: 320ms; }
+.hp-stagger-6 { transition-delay: 400ms; animation-delay: 400ms; }
+
+/* ── Version Type Color Identities ─────────────────────────────────────────── */
+
+/* Industry */
+.version-industry {
+  --v-hue: #3b82f6;
+  --v-soft: #eff6ff;
+  --v-border: #bfdbfe;
+  --v-text: #1d4ed8;
+}
+/* Interview */
+.version-interview {
+  --v-hue: #8b5cf6;
+  --v-soft: #f5f3ff;
+  --v-border: #ddd6fe;
+  --v-text: #6d28d9;
+}
+/* Real World */
+.version-realworld {
+  --v-hue: #10b981;
+  --v-soft: #ecfdf5;
+  --v-border: #a7f3d0;
+  --v-text: #047857;
+}
+/* Revision */
+.version-revision {
+  --v-hue: #f59e0b;
+  --v-soft: #fffbeb;
+  --v-border: #fde68a;
+  --v-text: #b45309;
+}
+/* Theory */
+.version-theory {
+  --v-hue: #ec4899;
+  --v-soft: #fdf2f8;
+  --v-border: #fbcfe8;
+  --v-text: #be185d;
+}
+/* Simple */
+.version-simple {
+  --v-hue: #f97316;
+  --v-soft: #fff7ed;
+  --v-border: #fed7aa;
+  --v-text: #c2410c;
+}
+
+/* ── Methodology Flow ────────────────────────────────────────────────────── */
+
+.method-tier {
+  position: relative;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.method-tier:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(249, 115, 22, 0.12);
+}
+.method-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+}
+.method-connector-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+}
+.method-connector-dot:nth-child(2) { background: #cbd5e1; }
+.method-connector-dot:nth-child(3) { background: #94a3b8; }
+
+/* ── Journey Timeline ────────────────────────────────────────────────────── */
+
+.journey-step {
+  position: relative;
+  transition: transform 0.22s ease;
+}
+.journey-step:hover {
+  transform: translateY(-4px);
+}
+.journey-step::after {
+  content: '';
+  position: absolute;
+  top: 2.25rem;
+  right: -1px;
+  width: calc(100% - 4.5rem + 1px);
+  height: 1px;
+  background: linear-gradient(90deg, #e2e8f0, transparent);
+}
+.journey-step:last-child::after {
+  display: none;
+}
+
+/* ── Hero version card pulse ring ────────────────────────────────────────── */
+.version-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid rgba(249, 115, 22, 0.35);
+  animation: hp-pulse-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+

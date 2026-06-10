@@ -84,7 +84,7 @@ const NoteTopicContent = memo(function NoteTopicContent() {
                 </p>
               </div>
               <CompareMode
-                versions={{ [note.version]: note.content }}
+                versions={{ [note.version]: note.content as any }}
                 leftVersion={compareLeft}
                 rightVersion={compareRight}
                 availableVersions={availableVersions}
