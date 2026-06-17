@@ -35,6 +35,8 @@ interface CurriculumContextValue {
   loadTechnologies: (forceRefetch?: boolean) => Promise<void>
   /** Invalidate the technologies cache entry (e.g. after create/rename/delete). */
   invalidateTechnologies: () => void
+  upsertTechnology: (technology: Technology) => void
+  removeTechnology: (techId: number) => void
 
   // Curriculum tree (active technology) — admin
   tree: CurriculumNode[]
@@ -49,6 +51,8 @@ interface CurriculumContextValue {
   loadTree: (techId: number, forceRefetch?: boolean) => Promise<void>
   /** Invalidate a specific tree cache entry (e.g. after topic CRUD). */
   invalidateTree: (techId: number) => void
+  /** Apply a local tree update without forcing a full refetch. */
+  mutateTree: (techId: number, updater: (current: CurriculumNode[]) => CurriculumNode[]) => void
 
   // Public curriculum tree (published-only, used by Sidebar)
   publicTree: CurriculumNode[]
@@ -131,6 +135,31 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
     curriculumCache.invalidateTechnologies()
   }, [])
 
+  const upsertTechnology = useCallback((technology: Technology) => {
+    setTechnologies((current) => {
+      const exists = current.some((item) => item.id === technology.id)
+      const next = exists
+        ? current.map((item) => (item.id === technology.id ? technology : item))
+        : [...current, technology]
+
+      next.sort((a, b) => {
+        if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+        return a.name.localeCompare(b.name)
+      })
+
+      curriculumCache.setTechnologies(next)
+      return next
+    })
+  }, [])
+
+  const removeTechnology = useCallback((techId: number) => {
+    setTechnologies((current) => {
+      const next = current.filter((item) => item.id !== techId)
+      curriculumCache.setTechnologies(next)
+      return next
+    })
+  }, [])
+
   // ── Curriculum tree (admin) ─────────────────────────────────────────────────
 
   const loadTree = useCallback(async (techId: number, forceRefetch = false) => {
@@ -159,6 +188,17 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
   const invalidateTree = useCallback((techId: number) => {
     curriculumCache.invalidateTree(techId)
   }, [])
+
+  const mutateTree = useCallback((techId: number, updater: (current: CurriculumNode[]) => CurriculumNode[]) => {
+    const current = curriculumCache.getTree(techId) ?? (activeTechId === techId ? tree : [])
+    const next = updater(current)
+
+    curriculumCache.setTree(techId, next)
+
+    if (activeTechId === techId) {
+      setTree(next)
+    }
+  }, [activeTechId, tree])
 
   // ── Public curriculum tree (published-only, for Sidebar) ────────────────────
 
@@ -213,15 +253,16 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
   // ── activeTechId setter (also triggers tree load) ───────────────────────────
 
   const setActiveTechId = useCallback((id: number | null) => {
-    if (id !== activeTechId) {
-      setTree([])
-    }
     setActiveTechIdState(id)
-    if (id) {
-      // Will use cached tree if available
-      loadTree(id)
+    if (id === null) {
+      setTree([])
+      return
     }
-  }, [activeTechId, loadTree])
+
+    const cached = curriculumCache.getTree(id)
+    setTree(cached ?? [])
+    void loadTree(id)
+  }, [loadTree])
 
   return (
     <CurriculumContext.Provider
@@ -230,6 +271,8 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
         techsLoading,
         loadTechnologies,
         invalidateTechnologies,
+        upsertTechnology,
+        removeTechnology,
 
         tree,
         treeLoading,
@@ -237,6 +280,7 @@ export function CurriculumProvider({ children }: { children: ReactNode }) {
         setActiveTechId,
         loadTree,
         invalidateTree,
+        mutateTree,
 
         publicTree,
         publicTreeLoading,

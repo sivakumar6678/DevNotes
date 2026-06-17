@@ -1,16 +1,21 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useDeferredValue, useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   EyeOff,
   Globe,
   Layers,
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Trash2,
   X,
+  Maximize2,
+  Minimize2,
+  Workflow,
 } from 'lucide-react'
 import { InlineLoader, PrimaryLoader, SavingLoader } from '../components/Loader'
 import {
@@ -24,11 +29,17 @@ import {
 import CurriculumTree from '../components/CurriculumTree'
 import { useAuth } from '../context/AuthContext'
 import { useCurriculum } from '../context/CurriculumContext'
+import { curriculumCache } from '../utils/curriculumCache'
+import {
+  countCurriculumNodes,
+  insertCurriculumNode,
+  removeCurriculumNodes,
+  updateCurriculumNode,
+} from '../utils/curriculumTree'
 import type { CurriculumNode, Technology } from '../types'
 
 type NodeType = 'section' | 'topic' | 'subtopic'
 
-// ─── Small helpers ────────────────────────────────────────────────────────────
 function slugify(text: string) {
   return text
     .toLowerCase()
@@ -37,20 +48,22 @@ function slugify(text: string) {
     .replace(/(^-|-$)/g, '')
 }
 
-// ─── Tech Menu (three-dot) ────────────────────────────────────────────────────
 function TechMenu({
   tech,
   onRename,
   onDelete,
   onTogglePublish,
+  publishPendingState,
 }: {
   tech: Technology
   onRename: () => void
   onDelete: () => void
   onTogglePublish: () => void
+  publishPendingState?: 'publishing' | 'unpublishing'
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const isPublishPending = publishPendingState !== undefined
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -64,27 +77,33 @@ function TechMenu({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+        onClick={(e) => { e.stopPropagation(); setOpen((current) => !current) }}
+        className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white hover:text-slate-700"
       >
-        <MoreHorizontal className="h-3.5 w-3.5" />
+        <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div className="absolute right-0 top-10 z-50 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
           <button
             type="button"
+            disabled={isPublishPending}
             onClick={() => { setOpen(false); onRename() }}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Pencil className="h-3.5 w-3.5 text-slate-400" />
             Rename
           </button>
           <button
             type="button"
+            disabled={isPublishPending}
             onClick={() => { setOpen(false); onTogglePublish() }}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {tech.is_published ? (
+            {publishPendingState === 'publishing' ? (
+              <><SavingLoader className="w-10" /> Publishing...</>
+            ) : publishPendingState === 'unpublishing' ? (
+              <><SavingLoader className="w-10" /> Unpublishing...</>
+            ) : tech.is_published ? (
               <><EyeOff className="h-3.5 w-3.5 text-slate-400" /> Unpublish</>
             ) : (
               <><Globe className="h-3.5 w-3.5 text-slate-400" /> Publish</>
@@ -93,8 +112,9 @@ function TechMenu({
           <div className="my-1 border-t border-slate-100" />
           <button
             type="button"
+            disabled={isPublishPending}
             onClick={() => { setOpen(false); onDelete() }}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 transition hover:bg-red-50"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Delete
@@ -105,43 +125,91 @@ function TechMenu({
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function countPublishedSubtopics(nodes: CurriculumNode[]): number {
+  let count = 0
+
+  const walk = (items: CurriculumNode[]) => {
+    items.forEach((node) => {
+      if (node.node_type === 'subtopic' && node.is_published) {
+        count += 1
+      }
+
+      if (node.children.length > 0) {
+        walk(node.children)
+      }
+    })
+  }
+
+  walk(nodes)
+  return count
+}
+
+function findNodeById(nodes: CurriculumNode[], nodeId: number): CurriculumNode | null {
+  for (const node of nodes) {
+    if (node.id === nodeId) {
+      return node
+    }
+
+    const match = findNodeById(node.children, nodeId)
+    if (match) {
+      return match
+    }
+  }
+
+  return null
+}
+
 export default function CurriculumPage() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
 
-  // ── Pull shared state from the global curriculum context ───────────────────
   const {
     technologies,
     techsLoading,
     loadTechnologies,
     invalidateTechnologies,
+    upsertTechnology,
+    removeTechnology,
     tree,
     treeLoading,
     activeTechId,
     setActiveTechId,
-    loadTree,
     invalidateTree,
+    mutateTree,
+    invalidatePublicTree,
     techError,
     setTechError,
   } = useCurriculum()
 
-  // ── Local UI state (not worth persisting globally) ─────────────────────────
   const [selectedNode, setSelectedNode] = useState<CurriculumNode | null>(null)
   const [isCreatingTopic, setIsCreatingTopic] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
-  // Add-tech modal
   const [techModalOpen, setTechModalOpen] = useState(false)
   const [newTechName, setNewTechName] = useState('')
   const [techModalSaving, setTechModalSaving] = useState(false)
   const [renamingTechId, setRenamingTechId] = useState<number | null>(null)
   const [renameTechValue, setRenameTechValue] = useState('')
 
-  const activeTech = technologies.find((t) => t.id === activeTechId) ?? null
+  const [searchQuery, setSearchQuery] = useState('')
+  const [technologyQuery, setTechnologyQuery] = useState('')
+  const [showMobileTechs, setShowMobileTechs] = useState(false)
+  const [expandAllSignal, setExpandAllSignal] = useState(0)
+  const [collapseAllSignal, setCollapseAllSignal] = useState(0)
+  const [expandedByTech, setExpandedByTech] = useState<Record<number, Record<number, boolean>>>({})
+  const [publishingNodes, setPublishingNodes] = useState<Record<number, 'publishing' | 'unpublishing'>>({})
+  const [publishingTechnologies, setPublishingTechnologies] = useState<Record<number, 'publishing' | 'unpublishing'>>({})
+  const scrollSnapshotRef = useRef<number | null>(null)
+  const anchorNodeIdRef = useRef<number | null>(null)
+  const anchorOffsetRef = useRef<number | null>(null)
 
-  // ── Merge context-level errors into local error banner ─────────────────────
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+  const deferredTechnologyQuery = useDeferredValue(technologyQuery)
+
+  const activeTech = technologies.find((tech) => tech.id === activeTechId) ?? null
+  const expandedState = activeTechId ? (expandedByTech[activeTechId] ?? {}) : {}
+
   useEffect(() => {
     if (techError) {
       setError(techError)
@@ -149,35 +217,109 @@ export default function CurriculumPage() {
     }
   }, [techError, setTechError])
 
-  // ── Bootstrap: load technologies once (cache-aware) ────────────────────────
-  // loadTechnologies reads from the in-memory cache first; only hits the
-  // network when the cache is empty or expired (TTL: 5 min).
   useEffect(() => {
-    loadTechnologies()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    void loadTechnologies()
+  }, [loadTechnologies])
 
-  // Auto-select the first technology when the list first arrives (or returns
-  // from cache) and no technology is already active.
   useEffect(() => {
     if (technologies.length > 0 && activeTechId === null) {
       setActiveTechId(technologies[0].id)
     }
   }, [technologies, activeTechId, setActiveTechId])
 
-  // ─── Tech CRUD ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    setSearchQuery('')
+    setSelectedNode(null)
+    setShowMobileTechs(false)
+  }, [activeTechId])
+
+  const flash = useCallback((message: string) => {
+    setSuccessMsg(message)
+    window.setTimeout(() => setSuccessMsg(''), 3000)
+  }, [])
+
+  const getTechnologyStats = useCallback((techId: number) => {
+    const source = techId === activeTechId ? tree : (curriculumCache.getTree(techId) ?? [])
+    const stats = countCurriculumNodes(source)
+
+    return {
+      ...stats,
+      total: stats.sections + stats.topics + stats.subtopics,
+    }
+  }, [activeTechId, tree])
+
+  const updateExpandedState = useCallback((nextExpanded: Record<number, boolean>) => {
+    if (!activeTechId) return
+
+    setExpandedByTech((current) => {
+      const previous = current[activeTechId] ?? {}
+      if (previous === nextExpanded) {
+        return current
+      }
+
+      return {
+        ...current,
+        [activeTechId]: nextExpanded,
+      }
+    })
+  }, [activeTechId])
+
+  const captureTreeContext = useCallback((nodeId?: number | null) => {
+    scrollSnapshotRef.current = window.scrollY
+    anchorNodeIdRef.current = nodeId ?? null
+
+    if (nodeId === null || nodeId === undefined) {
+      anchorOffsetRef.current = null
+      return
+    }
+
+    const anchor = document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)
+    anchorOffsetRef.current = anchor ? anchor.getBoundingClientRect().top : null
+  }, [])
+
+  const restoreTreeContext = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const anchorNodeId = anchorNodeIdRef.current
+      const anchorOffset = anchorOffsetRef.current
+
+      if (anchorNodeId !== null && anchorOffset !== null) {
+        const anchor = document.querySelector<HTMLElement>(`[data-node-id="${anchorNodeId}"]`)
+        if (anchor) {
+          const delta = anchor.getBoundingClientRect().top - anchorOffset
+          if (delta !== 0) {
+            window.scrollTo({ top: window.scrollY + delta })
+          }
+          return
+        }
+      }
+
+      if (scrollSnapshotRef.current !== null) {
+        window.scrollTo({ top: scrollSnapshotRef.current })
+      }
+    })
+  }, [])
+
+  const visibleTechnologies = technologies.filter((tech) =>
+    tech.name.toLowerCase().includes(deferredTechnologyQuery.trim().toLowerCase()),
+  )
+
+  const stats = countCurriculumNodes(tree)
+  const totalNodes = stats.sections + stats.topics + stats.subtopics
+  const publishedSubtopics = countPublishedSubtopics(tree)
+  const subtopicsHealthPct = stats.subtopics > 0 ? Math.round((publishedSubtopics / stats.subtopics) * 100) : 0
+
   async function handleAddTech(e: React.FormEvent) {
     e.preventDefault()
     const name = newTechName.trim()
     if (!name) return
+
     setTechModalSaving(true)
     try {
-      const tech = await createTechnology({ name, slug: slugify(name) })
+      const technology = await createTechnology({ name, slug: slugify(name) })
+      upsertTechnology(technology)
       setTechModalOpen(false)
       setNewTechName('')
-      invalidateTechnologies()
-      await loadTechnologies(true)
-      setActiveTechId(tech.id)
+      setActiveTechId(technology.id)
       flash('Technology created.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create technology.')
@@ -189,50 +331,73 @@ export default function CurriculumPage() {
   async function handleRenameTech(techId: number) {
     const name = renameTechValue.trim()
     if (!name) return
+
     try {
-      await updateTechnology(techId, { name })
+      const technology = await updateTechnology(techId, { name })
+      upsertTechnology(technology)
       setRenamingTechId(null)
       setRenameTechValue('')
-      invalidateTechnologies()
-      await loadTechnologies(true)
       flash('Technology renamed.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename.')
+      setError(err instanceof Error ? err.message : 'Failed to rename technology.')
     }
   }
 
   async function handleDeleteTech(tech: Technology) {
     if (!window.confirm(`Delete "${tech.name}" and ALL its topics? This cannot be undone.`)) return
+
+    const currentIndex = technologies.findIndex((item) => item.id === tech.id)
+    const remaining = technologies.filter((item) => item.id !== tech.id)
+    const fallbackTech = remaining[Math.min(currentIndex, remaining.length - 1)] ?? remaining[0] ?? null
+
     try {
       await deleteTechnology(tech.id)
-      if (activeTechId === tech.id) setActiveTechId(null)
-      invalidateTechnologies()
+      removeTechnology(tech.id)
       invalidateTree(tech.id)
-      await loadTechnologies(true)
+      invalidatePublicTree(tech.id)
+      invalidateTechnologies()
+
+      if (selectedNode?.technology_id === tech.id) {
+        setSelectedNode(null)
+      }
+
+      if (activeTechId === tech.id) {
+        setActiveTechId(fallbackTech?.id ?? null)
+      }
+
       flash('Technology deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete.')
+      setError(err instanceof Error ? err.message : 'Failed to delete technology.')
     }
   }
 
   async function handleTogglePublishTech(tech: Technology) {
+    const nextAction = tech.is_published ? 'unpublishing' : 'publishing'
+
+    setPublishingTechnologies((current) => ({ ...current, [tech.id]: nextAction }))
     try {
-      await updateTechnology(tech.id, { is_published: !tech.is_published })
-      invalidateTechnologies()
-      await loadTechnologies(true)
+      const technology = await updateTechnology(tech.id, { is_published: !tech.is_published })
+      upsertTechnology(technology)
       flash(tech.is_published ? 'Technology unpublished.' : 'Technology published.')
     } catch {
-      setError('Failed to update publish status.')
+      setError('Failed to update technology publish status.')
+    } finally {
+      setPublishingTechnologies((current) => {
+        const next = { ...current }
+        delete next[tech.id]
+        return next
+      })
     }
   }
 
-  // ─── Node CRUD ─────────────────────────────────────────────────────────────
   const handleAddChild = useCallback(async (parentId: number | null, name: string, nodeType: NodeType) => {
     if (!activeTechId) return
+
+    captureTreeContext(parentId)
     setIsCreatingTopic(true)
     setError('')
     try {
-      await createTopic({
+      const node = await createTopic({
         name,
         slug: slugify(name),
         technology_id: activeTechId,
@@ -240,53 +405,89 @@ export default function CurriculumPage() {
         node_type: nodeType,
         sort_order: 0,
       })
-      invalidateTree(activeTechId)
-      await loadTree(activeTechId, true)
+
+      mutateTree(activeTechId, (current) => insertCurriculumNode(current, node))
+      invalidatePublicTree(activeTechId)
+      flash(`${nodeType === 'topic' ? 'Topic' : nodeType === 'subtopic' ? 'Subtopic' : 'Section'} added.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add node.')
     } finally {
       setIsCreatingTopic(false)
+      restoreTreeContext()
     }
-  }, [activeTechId, invalidateTree, loadTree])
+  }, [activeTechId, captureTreeContext, flash, invalidatePublicTree, mutateTree, restoreTreeContext])
 
   const handleRename = useCallback(async (nodeId: number, newName: string) => {
+    if (!activeTechId) return
+
+    captureTreeContext(nodeId)
     try {
-      await updateTopic(nodeId, { name: newName })
-      if (activeTechId) {
-        invalidateTree(activeTechId)
-        await loadTree(activeTechId, true)
-      }
+      const updated = await updateTopic(nodeId, { name: newName })
+      mutateTree(activeTechId, (current) =>
+        updateCurriculumNode(current, nodeId, (node) => ({
+          ...node,
+          name: updated.name,
+          slug: updated.slug,
+        })),
+      )
+      invalidatePublicTree(activeTechId)
+      setSelectedNode((current) => current?.id === nodeId ? { ...current, name: updated.name, slug: updated.slug } : current)
+      flash('Node renamed.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename.')
+      setError(err instanceof Error ? err.message : 'Failed to rename node.')
+    } finally {
+      restoreTreeContext()
     }
-  }, [activeTechId, invalidateTree, loadTree])
+  }, [activeTechId, captureTreeContext, flash, invalidatePublicTree, mutateTree, restoreTreeContext])
 
   const handleDelete = useCallback(async (nodeId: number) => {
+    if (!activeTechId) return
+
+    const anchorId = findNodeById(tree, nodeId)?.parent_id ?? nodeId
+    captureTreeContext(anchorId)
     try {
-      await deleteTopic(nodeId)
-      if (selectedNode?.id === nodeId) setSelectedNode(null)
-      if (activeTechId) {
-        invalidateTree(activeTechId)
-        await loadTree(activeTechId, true)
-      }
+      const result = await deleteTopic(nodeId)
+      mutateTree(activeTechId, (current) => removeCurriculumNodes(current, result.deleted_ids))
+      invalidatePublicTree(activeTechId)
+      setSelectedNode((current) => current && result.deleted_ids.includes(current.id) ? null : current)
+      flash('Node deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete.')
+      setError(err instanceof Error ? err.message : 'Failed to delete node.')
+    } finally {
+      restoreTreeContext()
     }
-  }, [activeTechId, selectedNode, invalidateTree, loadTree])
+  }, [activeTechId, captureTreeContext, flash, invalidatePublicTree, mutateTree, restoreTreeContext, tree])
 
   const handleTogglePublishNode = useCallback(async (nodeId: number, current: boolean) => {
+    if (!activeTechId) return
+
+    const nextAction = current ? 'unpublishing' : 'publishing'
+
+    captureTreeContext(nodeId)
+    setPublishingNodes((items) => ({ ...items, [nodeId]: nextAction }))
     try {
-      await updateTopic(nodeId, { is_published: !current })
-      if (activeTechId) {
-        invalidateTree(activeTechId)
-        await loadTree(activeTechId, true)
-      }
+      const updated = await updateTopic(nodeId, { is_published: !current })
+      mutateTree(activeTechId, (items) =>
+        updateCurriculumNode(items, nodeId, (node) => ({
+          ...node,
+          is_published: updated.is_published,
+        })),
+      )
+      invalidatePublicTree(activeTechId)
+      setSelectedNode((node) => node?.id === nodeId ? { ...node, is_published: updated.is_published } : node)
+      flash(updated.is_published ? 'Node published.' : 'Node unpublished.')
     } catch {
       setError('Failed to update publish status.')
+    } finally {
+      setPublishingNodes((items) => {
+        const next = { ...items }
+        delete next[nodeId]
+        return next
+      })
+      restoreTreeContext()
     }
-  }, [activeTechId, invalidateTree, loadTree])
+  }, [activeTechId, captureTreeContext, flash, invalidatePublicTree, mutateTree, restoreTreeContext])
 
-  // ─── Node selection → navigate to editor page ─────────────────────────────
   const handleNodeSelect = useCallback((node: CurriculumNode) => {
     setSelectedNode(node)
     if (node.node_type === 'subtopic') {
@@ -294,230 +495,310 @@ export default function CurriculumPage() {
     }
   }, [navigate])
 
-  // ─── Flash helper ──────────────────────────────────────────────────────────
-  function flash(msg: string) {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3000)
-  }
-
-  // ─── Stats ─────────────────────────────────────────────────────────────────
-  function countAll(nodes: CurriculumNode[]): { sections: number; topics: number; subtopics: number } {
-    let sections = 0, topics = 0, subtopics = 0
-    const walk = (items: CurriculumNode[]) => {
-      items.forEach((n) => {
-        if (n.node_type === 'section') sections++
-        else if (n.node_type === 'topic') topics++
-        else subtopics++
-        walk(n.children)
-      })
-    }
-    walk(nodes)
-    return { sections, topics, subtopics }
-  }
-  const stats = countAll(tree)
-
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col bg-slate-50">
-      {/* ── Header ── */}
-      <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-orangeSoft">
-              <BookOpen className="h-4.5 w-4.5 text-brand-orange" />
+    <div className="min-h-full bg-slate-50">
+      <div className="mx-auto max-w-[1520px] px-4 py-4 sm:px-6 lg:px-8 lg:sticky lg:top-24 lg:z-10 lg:bg-slate-50 lg:py-5">
+        <div className="mb-4 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-orangeSoft">
+                <Workflow className="h-4.5 w-4.5 text-brand-orange" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight text-slate-950">Curriculum Builder</h1>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Manage technologies, sections, topics, and subtopics with minimal scrolling.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold leading-tight text-slate-900">Curriculum Builder</h1>
-              <p className="text-xs text-slate-500">Manage sections, topics, and note content</p>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setTechModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-orange-600 hover:shadow active:translate-y-0 active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" />
+              Add Technology
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setTechModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-px hover:bg-orange-600 active:translate-y-0"
-          >
-            <Plus className="h-4 w-4" />
-            Add Technology
-          </button>
-        </div>
-      </header>
-
-      {/* ── Content ── */}
-      <div className="mx-auto flex w-full max-w-[1400px] flex-1 gap-0 overflow-hidden px-4 py-5 sm:px-6">
-        {/* ── Left panel: Technology tabs ── */}
-        <aside className="w-56 shrink-0 pr-4">
-          <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            Technologies
-          </p>
-
-          {techsLoading ? (
-            <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/70">
-              <InlineLoader label="Loading technologies" />
-            </div>
-          ) : technologies.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 px-3 py-6 text-center">
-              <p className="text-xs text-slate-500">No technologies.</p>
-              <button
-                type="button"
-                onClick={() => setTechModalOpen(true)}
-                className="mt-3 text-xs font-semibold text-brand-orange hover:underline"
-              >
-                + Add one
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-1">
-              {technologies.map((tech) => {
-                const isActive = tech.id === activeTechId
-                return (
-                  <li key={tech.id}>
-                    {renamingTechId === tech.id ? (
-                      <div className="flex items-center gap-1 px-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={renameTechValue}
-                          onChange={(e) => setRenameTechValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRenameTech(tech.id)
-                            if (e.key === 'Escape') setRenamingTechId(null)
-                          }}
-                          onBlur={() => setRenamingTechId(null)}
-                          className="h-7 flex-1 rounded-lg border border-orange-300 bg-white px-2 text-sm focus:outline-none"
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setActiveTechId(tech.id)}
-                        onKeyDown={(e) => e.key === 'Enter' && setActiveTechId(tech.id)}
-                        className={`group flex items-center justify-between gap-1 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
-                          isActive
-                            ? 'bg-brand-orangeSoft text-brand-ink shadow-sm ring-1 ring-orange-200'
-                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
-                        }`}
-                      >
-                        <span className="truncate">{tech.name}</span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          {!tech.is_published && (
-                            <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-600">
-                              Draft
-                            </span>
-                          )}
-                          {isAdmin && (
-                            <TechMenu
-                              tech={tech}
-                              onRename={() => { setRenamingTechId(tech.id); setRenameTechValue(tech.name) }}
-                              onDelete={() => handleDeleteTech(tech)}
-                              onTogglePublish={() => handleTogglePublishTech(tech)}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </aside>
-
-        {/* ── Right panel: Tree + stats ── */}
-        <main className="flex min-w-0 flex-1 flex-col gap-4">
-          {/* Alerts */}
           {error && (
-            <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <span>{error}</span>
-              <button type="button" onClick={() => setError('')}>
+              <button type="button" onClick={() => setError('')} className="rounded-lg p-1 hover:bg-red-100">
                 <X className="h-4 w-4" />
               </button>
             </div>
           )}
+
           {successMsg && (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {successMsg}
             </div>
           )}
 
-          {activeTech ? (
-            <>
-              {/* Tech header row */}
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orangeSoft font-bold text-brand-orange">
-                    {activeTech.name.slice(0, 2).toUpperCase()}
+          <div className="lg:hidden">
+            <button
+              type="button"
+              onClick={() => setShowMobileTechs((current) => !current)}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left"
+            >
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Technology Workspace</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">{activeTech?.name ?? 'Select a technology'}</div>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showMobileTechs ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[268px_minmax(0,1fr)]">
+          <aside className={`${showMobileTechs ? 'block' : 'hidden'} lg:block lg:self-start`}>
+            <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden">
+              <div className="border-b border-slate-100 px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-brand-orange" />
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Technologies</h2>
+                </div>
+                <div className="relative mt-3">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <Search className="h-4 w-4" />
                   </div>
-                  <div>
-                    <h2 className="font-semibold text-slate-900">{activeTech.name}</h2>
-                    <p className="text-xs text-slate-500">
-                      {stats.sections} sections · {stats.topics} topics · {stats.subtopics} subtopics
+                  <input
+                    type="text"
+                    placeholder="Filter technologies..."
+                    value={technologyQuery}
+                    onChange={(e) => setTechnologyQuery(e.target.value)}
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
+                  />
+                </div>
+              </div>
+
+              <div className="p-2.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto sidebar-scroll">
+                {techsLoading ? (
+                  <div className="flex h-24 items-center px-2">
+                    <InlineLoader label="Loading technologies" />
+                  </div>
+                ) : visibleTechnologies.length > 0 ? (
+                  <div className="space-y-2">
+                    {visibleTechnologies.map((tech) => {
+                      const isActive = tech.id === activeTechId
+                      const techStats = getTechnologyStats(tech.id)
+
+                      return (
+                        <div
+                          key={tech.id}
+                          className={`rounded-xl border transition ${
+                            isActive
+                              ? 'border-orange-200 bg-orange-50/70 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {renamingTechId === tech.id ? (
+                            <div className="p-2.5">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={renameTechValue}
+                                onChange={(e) => setRenameTechValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') void handleRenameTech(tech.id)
+                                  if (e.key === 'Escape') setRenamingTechId(null)
+                                }}
+                                onBlur={() => setRenamingTechId(null)}
+                                className="h-10 w-full rounded-xl border border-orange-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTechId(tech.id)}
+                            className="flex w-full items-start gap-3 p-3 text-left transition-all duration-150 hover:shadow-sm active:scale-[0.99]"
+                            >
+                              <div className={`mt-1 h-2.5 w-2.5 rounded-full ${isActive ? 'bg-brand-orange' : 'bg-slate-300'}`} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className={`truncate text-sm ${isActive ? 'font-semibold text-slate-950' : 'font-medium text-slate-800'}`}>
+                                      {tech.name}
+                                    </div>
+                                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                                      <span>{tech.is_published ? 'Published' : 'Draft'}</span>
+                                      {techStats.total > 0 ? <span>{techStats.total} nodes</span> : null}
+                                    </div>
+                                  </div>
+                                  {isAdmin ? (
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                      <TechMenu
+                                        tech={tech}
+                                        onRename={() => { setRenamingTechId(tech.id); setRenameTechValue(tech.name) }}
+                                        onDelete={() => void handleDeleteTech(tech)}
+                                        onTogglePublish={() => void handleTogglePublishTech(tech)}
+                                        publishPendingState={publishingTechnologies[tech.id]}
+                                      />
+                                    </div>
+                                  ) : null}
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                                  <span><strong className="text-slate-900">{techStats.sections}</strong> Sections</span>
+                                  <span><strong className="text-slate-900">{techStats.topics}</strong> Topics</span>
+                                  <span><strong className="text-slate-900">{techStats.subtopics}</strong> Subtopics</span>
+                                </div>
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No technologies found.</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {technologyQuery ? 'Try another search term.' : 'Create your first technology workspace to begin.'}
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {activeTech.is_published ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                      <Globe className="h-3 w-3" /> Published
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-                      <EyeOff className="h-3 w-3" /> Draft
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Tree panel */}
-              <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                {treeLoading && tree.length === 0 ? (
-                  <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
-                ) : (
-                  <CurriculumTree
-                    nodes={tree}
-                    selectedId={selectedNode?.id ?? null}
-                    onSelect={handleNodeSelect}
-                    onAddChild={isAdmin ? handleAddChild : undefined}
-                    onRename={isAdmin ? handleRename : undefined}
-                    onDelete={isAdmin ? handleDelete : undefined}
-                    onTogglePublish={isAdmin ? handleTogglePublishNode : undefined}
-                    isSaving={isCreatingTopic}
-                  />
                 )}
               </div>
-            </>
-          ) : (
-            <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white">
-              <div className="text-center">
-                <Layers className="mx-auto h-10 w-10 text-slate-300" />
-                <p className="mt-3 font-semibold text-slate-700">Select a technology</p>
-                <p className="mt-1 text-sm text-slate-500">Or create one to get started.</p>
-              </div>
             </div>
-          )}
-        </main>
+          </aside>
+
+          <main className="min-w-0">
+            {activeTech ? (
+              <div className="space-y-4">
+                <section className="rounded-[24px] border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
+                  <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-orange">
+                        Active Workspace
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <h2 className="text-lg font-semibold tracking-tight text-slate-950">{activeTech.name}</h2>
+                        <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${activeTech.is_published ? 'text-emerald-600' : 'text-amber-700'}`}>
+                          {activeTech.is_published ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[13px] text-slate-500">
+                        Add topics from section headers and subtopics from topic headers.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600 xl:justify-end">
+                      <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <BookOpen className="h-4 w-4 text-slate-400" />
+                        <span><strong className="text-slate-900">{totalNodes}</strong> Nodes</span>
+                      </div>
+                      <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <span><strong className="text-slate-900">{stats.sections}</strong> Sections</span>
+                        <span><strong className="text-slate-900">{stats.topics}</strong> Topics</span>
+                        <span><strong className="text-slate-900">{stats.subtopics}</strong> Subtopics</span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <span className={subtopicsHealthPct === 100 ? 'text-emerald-600' : 'text-amber-600'}>
+                          <strong>{subtopicsHealthPct}%</strong>
+                        </span>
+                        <span className="text-slate-500">Published</span>
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
+                          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${subtopicsHealthPct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-4.5">
+                  <div className="lg:sticky lg:top-36 lg:z-10 lg:bg-white flex flex-col gap-3 border-b border-slate-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="relative w-full sm:max-w-sm">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <Search className="h-4 w-4" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Filter sections, topics, and subtopics..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setExpandAllSignal((current) => current + 1)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        Expand All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCollapseAllSignal((current) => current + 1)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
+                      >
+                        <Minimize2 className="h-3.5 w-3.5" />
+                        Collapse All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-4">
+                    {treeLoading && tree.length === 0 ? (
+                      <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
+                    ) : (
+                      <CurriculumTree
+                        key={activeTechId ?? 'curriculum-tree'}
+                        nodes={tree}
+                        selectedId={selectedNode?.id ?? null}
+                        onSelect={handleNodeSelect}
+                        onAddChild={isAdmin ? handleAddChild : undefined}
+                        onRename={isAdmin ? handleRename : undefined}
+                        onDelete={isAdmin ? handleDelete : undefined}
+                        onTogglePublish={isAdmin ? handleTogglePublishNode : undefined}
+                        isSaving={isCreatingTopic}
+                        searchQuery={deferredSearchQuery}
+                        expandAllSignal={expandAllSignal}
+                        collapseAllSignal={collapseAllSignal}
+                        initialExpanded={expandedState}
+                        onExpandedChange={updateExpandedState}
+                        publishPendingState={publishingNodes}
+                      />
+                    )}
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white px-6 text-center shadow-sm">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+                  <Layers className="h-8 w-8" />
+                </div>
+                <h3 className="mt-5 text-lg font-semibold text-slate-900">No technology selected</h3>
+                <p className="mt-2 max-w-md text-sm text-slate-500">
+                  Select a technology from the workspace panel, or create a new one to start building your curriculum.
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
-      {/* ── Add Technology Modal ── */}
       {techModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setTechModalOpen(false)}
           />
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
             <button
               type="button"
               onClick={() => setTechModalOpen(false)}
-              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
               <X className="h-4 w-4" />
             </button>
             <h3 className="text-base font-semibold text-slate-900">Add Technology</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Create a root technology tab (e.g. JavaScript, Python, CSS).
+              Create a workspace such as JavaScript, Python, or CSS.
             </p>
             <form onSubmit={handleAddTech} className="mt-5 space-y-4">
               <div>
@@ -531,7 +812,7 @@ export default function CurriculumPage() {
                   value={newTechName}
                   onChange={(e) => setNewTechName(e.target.value)}
                   placeholder="e.g. JavaScript"
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:outline-none"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
                 />
               </div>
               <div className="flex justify-end gap-2">

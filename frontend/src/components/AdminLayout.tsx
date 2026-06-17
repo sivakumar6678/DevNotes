@@ -31,7 +31,7 @@ export default function AdminLayout() {
   return (
     <div className={`flex relative ${isEditor ? 'flex-1 min-h-0 h-full' : ''}`}>
       {/* ── Left sidebar ── */}
-      <aside className={`sticky top-0 w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col ${isEditor ? 'h-full' : 'h-screen'}`}>
+      <aside className={`sticky top-24 z-10 w-64 shrink-0 self-start border-r border-slate-200 bg-white flex flex-col ${isEditor ? 'h-full' : 'h-[calc(100vh-6rem)] lg:top-28 lg:h-[calc(100vh-7rem)]'}`}>
         <div className="flex h-14 items-center px-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900 tracking-tight">Admin</h2>
         </div>
