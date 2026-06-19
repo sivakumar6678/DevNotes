@@ -497,7 +497,7 @@ export default function CurriculumPage() {
 
   return (
     <div className="min-h-full bg-slate-50">
-      <div className="mx-auto max-w-[1520px] px-4 py-4 sm:px-6 lg:px-8 lg:sticky lg:top-24 lg:z-10 lg:bg-slate-50 lg:py-5">
+      <div className="mx-auto max-w-[1520px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
         <div className="mb-4 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-3">
@@ -554,8 +554,8 @@ export default function CurriculumPage() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[268px_minmax(0,1fr)]">
-          <aside className={`${showMobileTechs ? 'block' : 'hidden'} lg:block lg:self-start`}>
-            <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden">
+          <aside className={`${showMobileTechs ? 'block' : 'hidden'} lg:block lg:self-start lg:sticky lg:top-28`}>
+            <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm lg:sticky lg:top-28 lg:flex lg:max-h-[calc(100vh-7rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden">
               <div className="border-b border-slate-100 px-4 py-4">
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-brand-orange" />
@@ -589,11 +589,10 @@ export default function CurriculumPage() {
                       return (
                         <div
                           key={tech.id}
-                          className={`rounded-xl border transition ${
-                            isActive
-                              ? 'border-orange-200 bg-orange-50/70 shadow-sm'
-                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                          }`}
+                          className={`rounded-xl border transition ${isActive
+                            ? 'border-orange-200 bg-orange-50/70 shadow-sm'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                            }`}
                         >
                           {renamingTechId === tech.id ? (
                             <div className="p-2.5">
@@ -614,7 +613,7 @@ export default function CurriculumPage() {
                             <button
                               type="button"
                               onClick={() => setActiveTechId(tech.id)}
-                            className="flex w-full items-start gap-3 p-3 text-left transition-all duration-150 hover:shadow-sm active:scale-[0.99]"
+                              className="flex w-full items-start gap-3 p-3 text-left transition-all duration-150 hover:shadow-sm active:scale-[0.99]"
                             >
                               <div className={`mt-1 h-2.5 w-2.5 rounded-full ${isActive ? 'bg-brand-orange' : 'bg-slate-300'}`} />
                               <div className="min-w-0 flex-1">
@@ -667,104 +666,107 @@ export default function CurriculumPage() {
           <main className="min-w-0">
             {activeTech ? (
               <div className="space-y-4">
-                <section className="rounded-[24px] border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
-                  <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="min-w-0">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-orange">
-                        Active Workspace
+                <div className=" lg:z-10 lg:bg-slate-50 lg:pb-4">
+                  <section className="rounded-[24px] border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
+                    <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-orange">
+                          Active Workspace
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <h2 className="text-lg font-semibold tracking-tight text-slate-950">{activeTech.name}</h2>
+                          <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${activeTech.is_published ? 'text-emerald-600' : 'text-amber-700'}`}>
+                            {activeTech.is_published ? 'Published' : 'Draft'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[13px] text-slate-500">
+                          Add topics from section headers and subtopics from topic headers.
+                        </p>
                       </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <h2 className="text-lg font-semibold tracking-tight text-slate-950">{activeTech.name}</h2>
-                        <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${activeTech.is_published ? 'text-emerald-600' : 'text-amber-700'}`}>
-                          {activeTech.is_published ? 'Published' : 'Draft'}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[13px] text-slate-500">
-                        Add topics from section headers and subtopics from topic headers.
-                      </p>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600 xl:justify-end">
-                      <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                        <BookOpen className="h-4 w-4 text-slate-400" />
-                        <span><strong className="text-slate-900">{totalNodes}</strong> Nodes</span>
-                      </div>
-                      <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                        <span><strong className="text-slate-900">{stats.sections}</strong> Sections</span>
-                        <span><strong className="text-slate-900">{stats.topics}</strong> Topics</span>
-                        <span><strong className="text-slate-900">{stats.subtopics}</strong> Subtopics</span>
-                      </div>
-                      <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                        <span className={subtopicsHealthPct === 100 ? 'text-emerald-600' : 'text-amber-600'}>
-                          <strong>{subtopicsHealthPct}%</strong>
-                        </span>
-                        <span className="text-slate-500">Published</span>
-                        <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
-                          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${subtopicsHealthPct}%` }} />
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600 xl:justify-end">
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                          <BookOpen className="h-4 w-4 text-slate-400" />
+                          <span><strong className="text-slate-900">{totalNodes}</strong> Nodes</span>
+                        </div>
+                        <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                          <span><strong className="text-slate-900">{stats.sections}</strong> Sections</span>
+                          <span><strong className="text-slate-900">{stats.topics}</strong> Topics</span>
+                          <span><strong className="text-slate-900">{stats.subtopics}</strong> Subtopics</span>
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                          <span className={subtopicsHealthPct === 100 ? 'text-emerald-600' : 'text-amber-600'}>
+                            <strong>{subtopicsHealthPct}%</strong>
+                          </span>
+                          <span className="text-slate-500">Published</span>
+                          <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
+                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${subtopicsHealthPct}%` }} />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+
+                  <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-4.5">
+                    <div className="flex flex-col gap-3 border-b border-slate-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="relative w-full sm:max-w-sm">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                          <Search className="h-4 w-4" />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Filter sections, topics, and subtopics..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandAllSignal((current) => current + 1)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                          Expand All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCollapseAllSignal((current) => current + 1)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
+                        >
+                          <Minimize2 className="h-3.5 w-3.5" />
+                          Collapse All
+                        </button>
+                      </div>
+                    </div>
+
+                  </section>
+                </div>
 
                 <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-4.5">
-                  <div className="lg:sticky lg:top-36 lg:z-10 lg:bg-white flex flex-col gap-3 border-b border-slate-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative w-full sm:max-w-sm">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <Search className="h-4 w-4" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Filter sections, topics, and subtopics..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-orange"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setExpandAllSignal((current) => current + 1)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
-                      >
-                        <Maximize2 className="h-3.5 w-3.5" />
-                        Expand All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCollapseAllSignal((current) => current + 1)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 hover:shadow active:translate-y-0 active:scale-[0.98]"
-                      >
-                        <Minimize2 className="h-3.5 w-3.5" />
-                        Collapse All
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    {treeLoading && tree.length === 0 ? (
-                      <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
-                    ) : (
-                      <CurriculumTree
-                        key={activeTechId ?? 'curriculum-tree'}
-                        nodes={tree}
-                        selectedId={selectedNode?.id ?? null}
-                        onSelect={handleNodeSelect}
-                        onAddChild={isAdmin ? handleAddChild : undefined}
-                        onRename={isAdmin ? handleRename : undefined}
-                        onDelete={isAdmin ? handleDelete : undefined}
-                        onTogglePublish={isAdmin ? handleTogglePublishNode : undefined}
-                        isSaving={isCreatingTopic}
-                        searchQuery={deferredSearchQuery}
-                        expandAllSignal={expandAllSignal}
-                        collapseAllSignal={collapseAllSignal}
-                        initialExpanded={expandedState}
-                        onExpandedChange={updateExpandedState}
-                        publishPendingState={publishingNodes}
-                      />
-                    )}
-                  </div>
+                  {treeLoading && tree.length === 0 ? (
+                    <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
+                  ) : (
+                    <CurriculumTree
+                      key={activeTechId ?? 'curriculum-tree'}
+                      nodes={tree}
+                      selectedId={selectedNode?.id ?? null}
+                      onSelect={handleNodeSelect}
+                      onAddChild={isAdmin ? handleAddChild : undefined}
+                      onRename={isAdmin ? handleRename : undefined}
+                      onDelete={isAdmin ? handleDelete : undefined}
+                      onTogglePublish={isAdmin ? handleTogglePublishNode : undefined}
+                      isSaving={isCreatingTopic}
+                      searchQuery={deferredSearchQuery}
+                      expandAllSignal={expandAllSignal}
+                      collapseAllSignal={collapseAllSignal}
+                      initialExpanded={expandedState}
+                      onExpandedChange={updateExpandedState}
+                      publishPendingState={publishingNodes}
+                    />
+                  )}
                 </section>
               </div>
             ) : (
