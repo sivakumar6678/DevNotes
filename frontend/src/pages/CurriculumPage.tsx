@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen,
@@ -63,11 +64,43 @@ function TechMenu({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const isPublishPending = publishPendingState !== undefined
+
+  const updateCoords = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      // Position the dropdown below the button, aligned to its right edge.
+      // Dropdown width is 176px (w-44).
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.right - 176 + window.scrollX,
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) {
+      updateCoords()
+      window.addEventListener('scroll', updateCoords, true)
+      window.addEventListener('resize', updateCoords)
+    }
+    return () => {
+      window.removeEventListener('scroll', updateCoords, true)
+      window.removeEventListener('resize', updateCoords)
+    }
+  }, [open, updateCoords])
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -76,14 +109,23 @@ function TechMenu({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((current) => !current) }}
         className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white hover:text-slate-700"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
-      {open && (
-        <div className="absolute right-0 top-10 z-50 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+      {open && coords && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'absolute',
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+          }}
+          className="z-50 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
+        >
           <button
             type="button"
             disabled={isPublishPending}
@@ -119,7 +161,8 @@ function TechMenu({
             <Trash2 className="h-3.5 w-3.5" />
             Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -203,6 +246,7 @@ export default function CurriculumPage() {
   const scrollSnapshotRef = useRef<number | null>(null)
   const anchorNodeIdRef = useRef<number | null>(null)
   const anchorOffsetRef = useRef<number | null>(null)
+  const treeRef = useRef<{ triggerAddSection: () => void }>(null)
 
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const deferredTechnologyQuery = useDeferredValue(technologyQuery)
@@ -610,10 +654,17 @@ export default function CurriculumPage() {
                               />
                             </div>
                           ) : (
-                            <button
-                              type="button"
+                            <div
+                              role="button"
+                              tabIndex={0}
                               onClick={() => setActiveTechId(tech.id)}
-                              className="flex w-full items-start gap-3 p-3 text-left transition-all duration-150 hover:shadow-sm active:scale-[0.99]"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setActiveTechId(tech.id)
+                                }
+                              }}
+                              className="flex w-full cursor-pointer items-start gap-3 p-3 text-left transition-all duration-150 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-brand-orange/20 rounded-xl"
                             >
                               <div className={`mt-1 h-2.5 w-2.5 rounded-full ${isActive ? 'bg-brand-orange' : 'bg-slate-300'}`} />
                               <div className="min-w-0 flex-1">
@@ -645,7 +696,7 @@ export default function CurriculumPage() {
                                   <span><strong className="text-slate-900">{techStats.subtopics}</strong> Subtopics</span>
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           )}
                         </div>
                       )
@@ -723,6 +774,16 @@ export default function CurriculumPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => treeRef.current?.triggerAddSection()}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-orange-600 hover:shadow active:translate-y-0 active:scale-[0.98]"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add Section
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setExpandAllSignal((current) => current + 1)}
@@ -750,6 +811,7 @@ export default function CurriculumPage() {
                     <PrimaryLoader className="min-h-[280px]" label="Loading curriculum tree" />
                   ) : (
                     <CurriculumTree
+                      ref={treeRef}
                       key={activeTechId ?? 'curriculum-tree'}
                       nodes={tree}
                       selectedId={selectedNode?.id ?? null}

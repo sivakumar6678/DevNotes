@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo } from 'react'
+import { useEffect, useRef, useState, memo, useImperativeHandle, forwardRef } from 'react'
 import { ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { CurriculumNode } from '../types'
 import { SavingLoader } from './Loader'
@@ -178,30 +178,40 @@ function InlineActions({
   )
 }
 
-const CurriculumTree = memo(function CurriculumTree({
-  nodes,
-  selectedId,
-  onSelect,
-  onAddChild,
-  onRename,
-  onDelete,
-  onTogglePublish,
-  isSaving = false,
-  searchQuery = '',
-  expandAllSignal = 0,
-  collapseAllSignal = 0,
-  initialExpanded = {},
-  onExpandedChange,
-  publishPendingState = {},
-}: CurriculumTreeProps) {
-  const [expanded, setExpanded] = useState<Record<number, boolean>>(initialExpanded)
-  const [addingToNodeId, setAddingToNodeId] = useState<number | 'root' | null>(null)
+const CurriculumTree = memo(
+  forwardRef<{ triggerAddSection: () => void }, CurriculumTreeProps>(
+    function CurriculumTree(props, ref) {
+      const {
+        nodes,
+        selectedId,
+        onSelect,
+        onAddChild,
+        onRename,
+        onDelete,
+        onTogglePublish,
+        isSaving = false,
+        searchQuery = '',
+        expandAllSignal = 0,
+        collapseAllSignal = 0,
+        initialExpanded = {},
+        onExpandedChange,
+        publishPendingState = {},
+      } = props
+
+      const [expanded, setExpanded] = useState<Record<number, boolean>>(initialExpanded)
+      const [addingToNodeId, setAddingToNodeId] = useState<number | 'root' | null>(null)
   const [addingNodeType, setAddingNodeType] = useState<NodeType>('section')
   const [renamingNodeId, setRenamingNodeId] = useState<number | null>(null)
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const lastExpandAllSignalRef = useRef(expandAllSignal)
   const lastCollapseAllSignalRef = useRef(collapseAllSignal)
+
+  useImperativeHandle(ref, () => ({
+    triggerAddSection() {
+      triggerAddChild('root', 'section')
+    }
+  }))
 
   const filteredNodes = filterNodes(nodes, searchQuery)
 
@@ -232,6 +242,7 @@ const CurriculumTree = memo(function CurriculumTree({
   useEffect(() => {
     if ((addingToNodeId !== null || renamingNodeId !== null) && inputRef.current) {
       inputRef.current.focus()
+      inputRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }, [addingToNodeId, renamingNodeId])
 
@@ -646,6 +657,6 @@ const CurriculumTree = memo(function CurriculumTree({
       )}
     </div>
   )
-})
+}))
 
 export default CurriculumTree
